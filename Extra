@@ -24,6 +24,15 @@ local packFarmTarget = false
 local packFarmInfinite = false
 local fastStrength = false
 
+-- Función de seguridad mejorada
+local function safeCall(func)
+    local success, err = pcall(func)
+    if not success then
+        warn("Error en función: " .. tostring(err))
+    end
+    return success
+end
+
 local function formatNumber(number)
     if number >= 1e15 then return string.format("%.2fQ", number/1e15)
     elseif number >= 1e12 then return string.format("%.2fT", number/1e12)
@@ -63,36 +72,42 @@ local packRebirthValues = {
     [8] = 16  
 }
 
+-- Función mejorada para unequipar todas las pets
 local function unequipAllPets()
-    local petsFolder = player.petsFolder
-    for _, folder in pairs(petsFolder:GetChildren()) do
-        if folder:IsA("Folder") then
-            for _, pet in pairs(folder:GetChildren()) do
-                ReplicatedStorage.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+    safeCall(function()
+        local petsFolder = player.petsFolder
+        for _, folder in pairs(petsFolder:GetChildren()) do
+            if folder:IsA("Folder") then
+                for _, pet in pairs(folder:GetChildren()) do
+                    ReplicatedStorage.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+                end
             end
         end
-    end
-    task.wait(0.1)
+        task.wait(0.05) -- Velocidad mejorada
+    end)
 end
 
+-- Función mejorada para equipar pets específicas
 local function equipSpecificPacks(packName, count)
-    unequipAllPets()
-    task.wait(0.2)
+    safeCall(function()
+        unequipAllPets()
+        task.wait(0.1) -- Velocidad mejorada
 
-    local packs = {}
-    for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
-        if pet.Name == packName then
-            table.insert(packs, pet)
+        local packs = {}
+        for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
+            if pet.Name == packName then
+                table.insert(packs, pet)
+            end
         end
-    end
 
-    local packsToEquip = math.min(count, #packs)
-    for i = 1, packsToEquip do
-        ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", packs[i])
-        task.wait(0.1)
-    end
+        local packsToEquip = math.min(count, #packs)
+        for i = 1, packsToEquip do
+            ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", packs[i])
+            task.wait(0.05) -- Velocidad mejorada
+        end
 
-    return packsToEquip
+        return packsToEquip
+    end)
 end
 
 local function findMachine(machineName)
@@ -111,7 +126,7 @@ end
 local function pressE()
     local vim = game:GetService("VirtualInputManager")
     vim:SendKeyEvent(true, "E", false, game)
-    task.wait(0.1)
+    task.wait(0.05) -- Velocidad mejorada
     vim:SendKeyEvent(false, "E", false, game)
 end
 
@@ -237,10 +252,11 @@ local targetPackToggle = PackFarmFolder:AddSwitch("Pack Farm | Target", function
                     equipSpecificPacks("Swift Samurai", 8)
 
                     while packFarmTarget and player.leaderstats.Strength.Value < rebirthCost do
-                        for i = 1, 10 do
+                        -- Velocidad de farming mejorada - más repeticiones por ciclo
+                        for i = 1, 20 do -- Aumentado de 10 a 20
                             player.muscleEvent:FireServer("rep")
                         end
-                        task.wait()
+                        task.wait(0.01) -- Reducido el tiempo de espera
                     end
 
                     equipSpecificPacks("Tribal Overlord", packCount)
@@ -249,7 +265,7 @@ local targetPackToggle = PackFarmFolder:AddSwitch("Pack Farm | Target", function
                     if machine and machine:FindFirstChild("interactSeat") then
                         player.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
                         repeat
-                            task.wait(0.1)
+                            task.wait(0.05) -- Velocidad mejorada
                             pressE()
                         until player.Character.Humanoid.Sit
                     end
@@ -257,10 +273,10 @@ local targetPackToggle = PackFarmFolder:AddSwitch("Pack Farm | Target", function
                     local initialRebirths = player.leaderstats.Rebirths.Value
                     repeat
                         ReplicatedStorage.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
-                        task.wait(0.1)
+                        task.wait(0.05) -- Velocidad mejorada
                     until player.leaderstats.Rebirths.Value > initialRebirths
 
-                    task.wait(0.5)
+                    task.wait(0.3) -- Velocidad mejorada
                 end
 
                 lockPosition(false)
@@ -305,10 +321,11 @@ local infinitePackToggle = PackFarmFolder:AddSwitch("Pack Farm | Infinite", func
                 equipSpecificPacks("Swift Samurai", 8)
 
                 while packFarmInfinite and player.leaderstats.Strength.Value < rebirthCost do
-                    for i = 1, 10 do
+                    -- Velocidad de farming mejorada - más repeticiones por ciclo
+                    for i = 1, 25 do -- Aumentado de 10 a 25
                         player.muscleEvent:FireServer("rep")
                     end
-                    task.wait()
+                    task.wait(0.01) -- Reducido el tiempo de espera
                 end
 
                 equipSpecificPacks("Tribal Overlord", 8)
@@ -317,7 +334,7 @@ local infinitePackToggle = PackFarmFolder:AddSwitch("Pack Farm | Infinite", func
                 if machine and machine:FindFirstChild("interactSeat") then
                     player.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
                     repeat
-                        task.wait(0.1)
+                        task.wait(0.05) -- Velocidad mejorada
                         pressE()
                     until player.Character.Humanoid.Sit
                 end
@@ -325,10 +342,10 @@ local infinitePackToggle = PackFarmFolder:AddSwitch("Pack Farm | Infinite", func
                 local initialRebirths = player.leaderstats.Rebirths.Value
                 repeat
                     ReplicatedStorage.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
-                    task.wait(0.1)
+                    task.wait(0.05) -- Velocidad mejorada
                 until player.leaderstats.Rebirths.Value > initialRebirths
 
-                task.wait(0.5)
+                task.wait(0.3) -- Velocidad mejorada
             end
 
             lockPosition(false)
@@ -358,10 +375,11 @@ local fastStrengthToggle = PackFarmFolder:AddSwitch("Pack Farm | Fast Strength",
             equipSpecificPacks("Swift Samurai", 8)
 
             while fastStrength do
-                for i = 1, 10 do
+                -- Velocidad de farming mejorada - más repeticiones por ciclo
+                for i = 1, 30 do -- Aumentado de 10 a 30
                     player.muscleEvent:FireServer("rep")
                 end
-                task.wait()
+                task.wait(0.005) -- Reducido significativamente el tiempo de espera
             end
         end)
     else
@@ -369,16 +387,56 @@ local fastStrengthToggle = PackFarmFolder:AddSwitch("Pack Farm | Fast Strength",
     end
 end)
 
+-- Función mejorada para ocultar todos los elementos de la interfaz
 PackFarmFolder:AddSwitch("Hide All Frames", function(state)
-    local rSto = game:GetService("ReplicatedStorage")
-    for _, obj in pairs(rSto:GetChildren()) do
-        if obj.Name:match("Frame$") and obj:IsA("GuiObject") then
-            obj.Visible = not state
+    safeCall(function()
+        -- Ocultar elementos en ReplicatedStorage
+        local rSto = game:GetService("ReplicatedStorage")
+        for _, obj in pairs(rSto:GetChildren()) do
+            if obj:IsA("GuiObject") then
+                obj.Visible = not state
+            end
         end
-    end
+        
+        -- Ocultar elementos en StarterGui
+        local starterGui = game:GetService("StarterGui")
+        for _, obj in pairs(starterGui:GetChildren()) do
+            if obj:IsA("ScreenGui") then
+                obj.Enabled = not state
+            end
+        end
+        
+        -- Ocultar elementos en PlayerGui
+        if player:FindFirstChild("PlayerGui") then
+            for _, gui in pairs(player.PlayerGui:GetChildren()) do
+                if gui:IsA("ScreenGui") and gui.Name ~= "Chat" then -- Mantener el chat visible
+                    gui.Enabled = not state
+                end
+            end
+        end
+        
+        -- Ocultar elementos específicos del juego
+        local coreGui = game:GetService("CoreGui")
+        pcall(function()
+            for _, obj in pairs(coreGui:GetChildren()) do
+                if obj:IsA("ScreenGui") then
+                    obj.Enabled = not state
+                end
+            end
+        end)
+        
+        -- Ocultar elementos en workspace que puedan ser GUI
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") then
+                obj.Enabled = not state
+            end
+        end
+        
+        print("Hide All Frames: " .. tostring(state))
+    end)
 end)
 
--- Anti Lag System
+-- Anti Lag System mejorado
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
@@ -502,54 +560,14 @@ PackFarmFolder:AddSwitch("Anti Lag (Blackout)", function(state)
     end
 end)
 
--- Clean up connections when player leaves
-player.AncestryChanged:Connect(function()
-    if not player.Parent then
-        for itemName, connection in pairs(snackConnections) do
-            if connection then
-                task.cancel(connection)
-            end
-        end
-        snackConnections = {}
-        
-        if _G.positionConnection then
-            _G.positionConnection:Disconnect()
-            _G.positionConnection = nil
-        end
-        
-        if getgenv().posLock then
-            getgenv().posLock:Disconnect()
-            getgenv().posLock = nil
-        end
-        
-        if stepConn then stepConn:Disconnect() end
-        if charConn then charConn:Disconnect() end
-    end
-end)
-
--- Función para unequipar todas las pets
-local function unequipAllPets()
-    safeCall(function()
-        local petsFolder = game.Players.LocalPlayer.petsFolder
-        for _, folder in pairs(petsFolder:GetChildren()) do
-            if folder:IsA("Folder") then
-                for _, pet in pairs(folder:GetChildren()) do
-                    game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("unequipPet", pet)
-                end
-            end
-        end
-        task.wait(0.2)
-    end)
-end
-
--- Función para equipar pets específicas
+-- Función mejorada para equipar pets específicas con mejor gestión de errores
 local function equipSpecificPets(petName, maxPets)
     safeCall(function()
         -- Primero unequipar todas las pets
         unequipAllPets()
         
         local petsToEquip = {}
-        local uniqueFolder = game.Players.LocalPlayer.petsFolder.Unique
+        local uniqueFolder = player.petsFolder.Unique
         
         if uniqueFolder then
             for _, pet in pairs(uniqueFolder:GetChildren()) do
@@ -562,20 +580,67 @@ local function equipSpecificPets(petName, maxPets)
         local equippedCount = math.min(#petsToEquip, maxPets or 8)
 
         for i = 1, equippedCount do
-            game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("equipPet", petsToEquip[i])
-            task.wait(0.1)
+            ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", petsToEquip[i])
+            task.wait(0.05) -- Velocidad mejorada
         end
         
         print("Equipped " .. equippedCount .. " " .. petName .. " pets")
     end)
 end
 
--- Botón para Swift Samurai
+-- Botones mejorados para equipar pets
 PackFarmFolder:AddButton("Equip Swift Samurai (8x)", function()
     equipSpecificPets("Swift Samurai", 8)
 end)
 
--- Botón para Tribal Overlord
 PackFarmFolder:AddButton("Equip Tribal Overlord (8x)", function()
     equipSpecificPets("Tribal Overlord", 8)
+end)
+
+PackFarmFolder:AddButton("Unequip All Pets", function()
+    unequipAllPets()
+end)
+
+-- Variables de conexiones para limpieza
+local snackConnections = {}
+
+-- Clean up connections when player leaves - mejorado
+player.AncestryChanged:Connect(function()
+    if not player.Parent then
+        -- Limpiar todas las conexiones
+        for itemName, connection in pairs(snackConnections) do
+            if connection then
+                pcall(function() task.cancel(connection) end)
+            end
+        end
+        snackConnections = {}
+        
+        if _G.positionConnection then
+            pcall(function() _G.positionConnection:Disconnect() end)
+            _G.positionConnection = nil
+        end
+        
+        if getgenv().posLock then
+            pcall(function() getgenv().posLock:Disconnect() end)
+            getgenv().posLock = nil
+        end
+        
+        if stepConn then 
+            pcall(function() stepConn:Disconnect() end) 
+            stepConn = nil
+        end
+        
+        if charConn then 
+            pcall(function() charConn:Disconnect() end) 
+            charConn = nil
+        end
+        
+        -- Desactivar todas las funciones activas
+        packFarmTarget = false
+        packFarmInfinite = false
+        fastStrength = false
+        antiLagOn = false
+        
+        print("Script cleanup completed")
+    end
 end)
