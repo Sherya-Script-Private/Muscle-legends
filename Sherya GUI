@@ -1,1 +1,175 @@
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/memejames/elerium-v2-ui-library//main/Library", true))()
+local window = library:AddWindow("Sherya Script", {
+    main_color = Color3.fromRGB(200, 0, 255),
+    min_size = Vector2.new(660, 660),
+    can_resize = false,
+})
+
+local Farm = window:AddTab("Farm")
+
+
+local rebirthFarmFolder = Farm:AddFolder("Premium Farm")
+
+local function unequipAllPets()
+    local petsFolder = player.petsFolder
+    for _, folder in pairs(petsFolder:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                ReplicatedStorage.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+            end
+        end
+    end
+    task.wait(0.1)
+end
+
+local function equipUniquePet(petName)
+    unequipAllPets()
+    task.wait(0.01)
+    for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
+        if pet.Name == petName then
+            ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", pet)
+        end
+    end
+end
+
+local function findMachine(machineName)
+    local machine = workspace.machinesFolder:FindFirstChild(machineName)
+    if not machine then
+        for _, folder in pairs(workspace:GetChildren()) do
+            if folder:IsA("Folder") and folder.Name:find("machines") then
+                machine = folder:FindFirstChild(machineName)
+                if machine then break end
+            end
+        end
+    end
+    return machine
+end
+
+local function pressE()
+    local vim = game:GetService("VirtualInputManager")
+    vim:SendKeyEvent(true, "E", false, game)
+    task.wait(0.1)
+    vim:SendKeyEvent(false, "E", false, game)
+end
+
+local function useOneEgg()
+    ReplicatedStorage.rEvents.proteinEggEvent:FireServer("useEgg")
+end
+
+rebirthFarmFolder:AddLabel("OP Rebirth Farm ")
+
+rebirthFarmFolder:AddTextBox("Target Rebirth", function(text)
+    targetRebirth = tonumber(text) or math.huge
+end)
+
+-- Variable to store the position lock connection
+local positionLockConnection = nil
+
+-- Function to lock player position
+local function lockPlayerPosition(position)
+    if positionLockConnection then
+        positionLockConnection:Disconnect()
+    end
+    
+    positionLockConnection = game:GetService("RunService").Heartbeat:Connect(function()
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = position
+        end
+    end)
+end
+
+-- Function to unlock player position
+local function unlockPlayerPosition()
+    if positionLockConnection then
+        positionLockConnection:Disconnect()
+        positionLockConnection = nil
+    end
+end
+
+-- Add position lock toggle
+rebirthFarmFolder:AddSwitch("Lock Position", function(bool)
+    if bool then
+        -- Get current position and lock it
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local currentPosition = player.Character.HumanoidRootPart.CFrame
+            lockPlayerPosition(currentPosition)
+        end
+    else
+        -- Unlock position
+        unlockPlayerPosition()
+    end
+end)
+
+local packFarm = rebirthFarmFolder:AddSwitch("Rebirth Farm", function(bool)
+    isRunning = bool
+    
+    task.spawn(function()
+        while isRunning do
+            local currentRebirths = player.leaderstats.Rebirths.Value
+            local rebirthCost = 10000 + (5000 * currentRebirths)
+            
+            if player.ultimatesFolder:FindFirstChild("Golden Rebirth") then
+                local goldenRebirths = player.ultimatesFolder["Golden Rebirth"].Value
+                rebirthCost = math.floor(rebirthCost * (1 - (goldenRebirths * 0.1)))
+            end
+            unequipAllPets()
+            task.wait(0.1)
+            equipUniquePet("Swift Samurai")
+            
+            while isRunning and player.leaderstats.Strength.Value < rebirthCost do
+                for i = 1, 10 do
+                    player.muscleEvent:FireServer("rep")
+                end
+                task.wait()
+            end
+            unequipAllPets()
+            task.wait(0.1)
+            equipUniquePet("Tribal Overlord")
+            local machine = findMachine("Jungle Bar Lift")
+            if machine and machine:FindFirstChild("interactSeat") then
+                player.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
+                repeat
+                    task.wait(0.1)
+                    pressE()
+                until player.Character.Humanoid.Sit
+            end
+            local initialRebirths = player.leaderstats.Rebirths.Value
+            repeat
+                ReplicatedStorage.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                task.wait(0.1)
+            until player.leaderstats.Rebirths.Value > initialRebirths
+            if not isRunning then break end
+            task.wait()
+        end
+    end)
+end)
+
+local frameToggle = rebirthFarmFolder:AddSwitch("Hide Frames", function(bool)
+    local rSto = game:GetService("ReplicatedStorage")
+    for _, obj in pairs(rSto:GetChildren()) do
+        if obj.Name:match("Frame$") then
+            obj.Visible = not bool
+        end
+    end
+end)
+
+local speedGrind = rebirthFarmFolder:AddSwitch("Fast Strength", function(bool)
+    local isGrinding = bool
+    
+    if not bool then
+        unequipAllPets()
+        return
+    end
+    
+    equipUniquePet("Swift Samurai")
+    
+    for i = 1, 14 do
+        task.spawn(function()
+            while isGrinding do
+                player.muscleEvent:FireServer("rep")
+                task.wait()
+            end
+        end)
+    end
+end)
 
