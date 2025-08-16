@@ -75,7 +75,7 @@ end
 
 local function equipSpecificPacks(packName, count)
     unequipAllPets()
-    task.wait(0.1)
+    task.wait(0.2)
 
     local packs = {}
     for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
@@ -258,7 +258,7 @@ local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
                         task.wait(0.1)
                     until player.leaderstats.Rebirths.Value > initialRebirths
 
-                    task.wait(0.1)
+                    task.wait(0.5)
                 end
 
                 lockPosition(false)
@@ -326,7 +326,7 @@ local infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
                     task.wait(0.1)
                 until player.leaderstats.Rebirths.Value > initialRebirths
 
-                task.wait(0.1)
+                task.wait(0.5)
             end
 
             lockPosition(false)
@@ -359,12 +359,223 @@ local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(
                 for i = 1, 10 do
                     player.muscleEvent:FireServer("rep")
                 end
-                task.wait(0.1)
+                task.wait()
             end
         end)
     else
         unequipAllPets()
     end
+end)
+
+Farm:AddSwitch("Hide All Frames", function(state)
+    local rSto = game:GetService("ReplicatedStorage")
+    for _, obj in pairs(rSto:GetChildren()) do
+        if obj.Name:match("Frame$") and obj:IsA("GuiObject") then
+            obj.Visible = not state
+        end
+    end
+end)
+
+-- Anti Lag System
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local antiLagOn = false
+local modifiedParts = {}
+local charConn
+local stepConn
+local pointLight
+local savedLighting = nil
+
+local function snapshotLighting()
+    return {
+        Ambient = Lighting.Ambient,
+        OutdoorAmbient = Lighting.OutdoorAmbient,
+        Brightness = Lighting.Brightness,
+        FogStart = Lighting.FogStart,
+        FogEnd = Lighting.FogEnd,
+        ClockTime = Lighting.ClockTime,
+        GlobalShadows = Lighting.GlobalShadows,
+    }
+end
+
+local function restoreLighting(snap)
+    if not snap then return end
+    Lighting.Ambient = snap.Ambient
+    Lighting.OutdoorAmbient = snap.OutdoorAmbient
+    Lighting.Brightness = snap.Brightness
+    Lighting.FogStart = snap.FogStart
+    Lighting.FogEnd = snap.FogEnd
+    Lighting.ClockTime = snap.ClockTime
+    Lighting.GlobalShadows = snap.GlobalShadows
+end
+
+local function applyBlackoutForCharacter(character)
+    if not character then return end
+
+    if not savedLighting then
+        savedLighting = snapshotLighting()
+    end
+    Lighting.Ambient = Color3.new(0, 0, 0)
+    Lighting.OutdoorAmbient = Color3.new(0, 0, 0)
+    Lighting.Brightness = 0
+    Lighting.GlobalShadows = true
+    Lighting.ClockTime = 0
+    Lighting.FogStart = 0
+    Lighting.FogEnd = 20
+
+    table.clear(modifiedParts)
+    for _, inst in ipairs(workspace:GetDescendants()) do
+        if inst:IsA("BasePart") and not inst:IsDescendantOf(character) then
+            modifiedParts[inst] = inst.LocalTransparencyModifier
+            inst.LocalTransparencyModifier = 1
+        end
+    end
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        pointLight = pointLight or Instance.new("PointLight")
+        pointLight.Parent = hrp
+        pointLight.Range = 20
+        pointLight.Brightness = 2
+        pointLight.Shadows = false
+    end
+end
+
+local function removeBlackout()
+    if savedLighting then
+        restoreLighting(savedLighting)
+        savedLighting = nil
+    end
+    if pointLight then
+        pcall(function() pointLight:Destroy() end)
+        pointLight = nil
+    end
+    for part, prev in pairs(modifiedParts) do
+        if part and part.Parent then
+            part.LocalTransparencyModifier = prev or 0
+        end
+    end
+    table.clear(modifiedParts)
+end
+
+local function bindCharacter(character)
+    if not antiLagOn then return end
+    task.delay(0.1, function()
+        applyBlackoutForCharacter(character)
+    end)
+end
+
+local function hookCharacterEvents()
+    if charConn then charConn:Disconnect() end
+    charConn = LocalPlayer.CharacterAdded:Connect(bindCharacter)
+end
+
+Farm:AddSwitch("Anti Lag (Blackout)", function(state)
+    antiLagOn = state
+    if state then
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        applyBlackoutForCharacter(character)
+        hookCharacterEvents()
+
+        if stepConn then stepConn:Disconnect() end
+        stepConn = RunService.Heartbeat:Connect(function()
+            if not antiLagOn then return end
+            local character = LocalPlayer.Character
+            for _, inst in ipairs(workspace:GetDescendants()) do
+                if inst:IsA("BasePart") and (not character or not inst:IsDescendantOf(character)) then
+                    if inst.LocalTransparencyModifier ~= 1 then
+                        modifiedParts[inst] = inst.LocalTransparencyModifier
+                        inst.LocalTransparencyModifier = 1
+                    end
+                end
+            end
+        end)
+    else
+        if stepConn then stepConn:Disconnect() stepConn = nil end
+        if charConn then charConn:Disconnect() charConn = nil end
+        removeBlackout()
+    end
+end)
+
+-- Clean up connections when player leaves
+player.AncestryChanged:Connect(function()
+    if not player.Parent then
+        for itemName, connection in pairs(snackConnections) do
+            if connection then
+                task.cancel(connection)
+            end
+        end
+        snackConnections = {}
+        
+        if _G.positionConnection then
+            _G.positionConnection:Disconnect()
+            _G.positionConnection = nil
+        end
+        
+        if getgenv().posLock then
+            getgenv().posLock:Disconnect()
+            getgenv().posLock = nil
+        end
+        
+        if stepConn then stepConn:Disconnect() end
+        if charConn then charConn:Disconnect() end
+    end
+end)
+
+-- Función para unequipar todas las pets
+local function unequipAllPets()
+    safeCall(function()
+        local petsFolder = game.Players.LocalPlayer.petsFolder
+        for _, folder in pairs(petsFolder:GetChildren()) do
+            if folder:IsA("Folder") then
+                for _, pet in pairs(folder:GetChildren()) do
+                    game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("unequipPet", pet)
+                end
+            end
+        end
+        task.wait(0.2)
+    end)
+end
+
+-- Función para equipar pets específicas
+local function equipSpecificPets(petName, maxPets)
+    safeCall(function()
+        -- Primero unequipar todas las pets
+        unequipAllPets()
+        
+        local petsToEquip = {}
+        local uniqueFolder = game.Players.LocalPlayer.petsFolder.Unique
+        
+        if uniqueFolder then
+            for _, pet in pairs(uniqueFolder:GetChildren()) do
+                if pet.Name == petName then
+                    table.insert(petsToEquip, pet)
+                end
+            end
+        end
+
+        local equippedCount = math.min(#petsToEquip, maxPets or 8)
+
+        for i = 1, equippedCount do
+            game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("equipPet", petsToEquip[i])
+            task.wait(0.1)
+        end
+        
+        print("Equipped " .. equippedCount .. " " .. petName .. " pets")
+    end)
+end
+
+-- Botón para Swift Samurai
+Farm:AddButton("Equip Swift Samurai (8x)", function()
+    equipSpecificPets("Swift Samurai", 8)
+end)
+
+-- Botón para Tribal Overlord
+Farm:AddButton("Equip Tribal Overlord (8x)", function()
+    equipSpecificPets("Tribal Overlord", 8)
 end)
 
 local statsFolder = Farm:AddFolder("Rebirth Statistics")
@@ -489,7 +700,7 @@ task.spawn(function()
     local function checkForRebirthStart()
         if not player.leaderstats or not player.leaderstats:FindFirstChild("Rebirths") then
             repeat
-                task.wait(0.1)
+                task.wait(0.5)
             until player.leaderstats and player.leaderstats:FindFirstChild("Rebirths")
         end
 
