@@ -7,8 +7,17 @@ local window = library:AddWindow("Sherya Script", {
 
 local Farm = window:AddTab("Farm")
 
-
-local rebirthFarmFolder = Farm:AddFolder("Premium Farm")
+local packRebirthValues = {
+    [0] = 1,  
+    [1] = 2,  
+    [2] = 4,  
+    [3] = 6,  
+    [4] = 8,  
+    [5] = 10, 
+    [6] = 12, 
+    [7] = 14, 
+    [8] = 16  
+}
 
 local function unequipAllPets()
     local petsFolder = player.petsFolder
@@ -22,14 +31,24 @@ local function unequipAllPets()
     task.wait(0.1)
 end
 
-local function equipUniquePet(petName)
+local function equipSpecificPacks(packName, count)
     unequipAllPets()
-    task.wait(0.01)
+    task.wait(0.2)
+
+    local packs = {}
     for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
-        if pet.Name == petName then
-            ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", pet)
+        if pet.Name == packName then
+            table.insert(packs, pet)
         end
     end
+
+    local packsToEquip = math.min(count, #packs)
+    for i = 1, packsToEquip do
+        ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", packs[i])
+        task.wait(0.1)
+    end
+
+    return packsToEquip
 end
 
 local function findMachine(machineName)
@@ -52,124 +71,256 @@ local function pressE()
     vim:SendKeyEvent(false, "E", false, game)
 end
 
-local function useOneEgg()
-    ReplicatedStorage.rEvents.proteinEggEvent:FireServer("useEgg")
+local isPositionLocked = false
+local originalCFrame = nil
+local function lockPosition(lock)
+    isPositionLocked = lock
+
+    if lock and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        originalCFrame = player.Character.HumanoidRootPart.CFrame
+
+        if not _G.positionConnection then
+            _G.positionConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if isPositionLocked and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and originalCFrame then
+                    player.Character.HumanoidRootPart.CFrame = originalCFrame
+                    player.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                    player.Character.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+                end
+            end)
+        end
+    elseif not lock and _G.positionConnection then
+        _G.positionConnection:Disconnect()
+        _G.positionConnection = nil
+    end
 end
 
-rebirthFarmFolder:AddLabel("OP Rebirth Farm ")
+local function calculateOptimalPacks(currentRebirths, targetRebirths)
+    local rebirthsNeeded = targetRebirths - currentRebirths
 
-rebirthFarmFolder:AddTextBox("Target Rebirth", function(text)
-    targetRebirth = tonumber(text) or math.huge
+    if rebirthsNeeded <= 0 then
+        return 0
+    end
+
+    if rebirthsNeeded == 1 then
+        return 0
+    end
+
+    for packCount = 1, 8 do
+        if packRebirthValues[packCount] == rebirthsNeeded then
+            return packCount
+        end
+    end
+
+    for packCount = 8, 1, -1 do
+        if packRebirthValues[packCount] < rebirthsNeeded then
+            local remaining = rebirthsNeeded - packRebirthValues[packCount]
+
+            if remaining == 1 then
+                return packCount
+            end
+
+            for secondPackCount = 8, 0, -1 do
+                if packRebirthValues[secondPackCount] == remaining then
+                    return packCount
+                end
+            end
+
+            return packCount
+        end
+    end
+
+    return 0
+end
+
+Farm:AddTextBox("Target Rebirth Amount", function(text)
+    local num = tonumber(text)
+    if num then
+        targetRebirth = num
+    else
+        targetRebirth = math.huge
+    end
 end)
 
--- Variable to store the position lock connection
-local positionLockConnection = nil
+local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
+    packFarmTarget = bool
 
--- Function to lock player position
-local function lockPlayerPosition(position)
-    if positionLockConnection then
-        positionLockConnection:Disconnect()
-    end
-    
-    positionLockConnection = game:GetService("RunService").Heartbeat:Connect(function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = position
-        end
-    end)
-end
-
--- Function to unlock player position
-local function unlockPlayerPosition()
-    if positionLockConnection then
-        positionLockConnection:Disconnect()
-        positionLockConnection = nil
-    end
-end
-
--- Add position lock toggle
-rebirthFarmFolder:AddSwitch("Lock Position", function(bool)
     if bool then
-        -- Get current position and lock it
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local currentPosition = player.Character.HumanoidRootPart.CFrame
-            lockPlayerPosition(currentPosition)
+        if packFarmInfinite then
+            packFarmInfinite = false
+            infinitePackToggle:Set(false)
+        end
+
+        if fastStrength then
+            fastStrength = false
+            fastStrengthToggle:Set(false)
+        end
+
+        if targetRebirth ~= math.huge and targetRebirth > player.leaderstats.Rebirths.Value then
+            task.spawn(function()
+                lockPosition(true)
+
+                while packFarmTarget do
+                    local currentRebirths = player.leaderstats.Rebirths.Value
+
+                    if currentRebirths >= targetRebirth then
+                        packFarmTarget = false
+                        targetPackToggle:Set(false)
+                        lockPosition(false)
+                        break
+                    end
+
+                    local rebirthCost = 10000 + (5000 * currentRebirths)
+                    if player.ultimatesFolder:FindFirstChild("Golden Rebirth") then
+                        local goldenRebirths = player.ultimatesFolder["Golden Rebirth"].Value
+                        rebirthCost = math.floor(rebirthCost * (1 - (goldenRebirths * 0.1)))
+                    end
+
+                    local rebirthsNeeded = targetRebirth - currentRebirths
+
+                    local packCount = 0
+
+                    if rebirthsNeeded == 1 then
+                        packCount = 0
+                    else
+                        for i = 8, 1, -1 do
+                            if packRebirthValues[i] <= rebirthsNeeded then
+                                packCount = i
+                                break
+                            end
+                        end
+                    end
+
+                    equipSpecificPacks("Swift Samurai", 8)
+
+                    while packFarmTarget and player.leaderstats.Strength.Value < rebirthCost do
+                        for i = 1, 10 do
+                            player.muscleEvent:FireServer("rep")
+                        end
+                        task.wait()
+                    end
+
+                    equipSpecificPacks("Tribal Overlord", packCount)
+
+                    local machine = findMachine("Jungle Bar Lift")
+                    if machine and machine:FindFirstChild("interactSeat") then
+                        player.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
+                        repeat
+                            task.wait(0.1)
+                            pressE()
+                        until player.Character.Humanoid.Sit
+                    end
+
+                    local initialRebirths = player.leaderstats.Rebirths.Value
+                    repeat
+                        ReplicatedStorage.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                        task.wait(0.1)
+                    until player.leaderstats.Rebirths.Value > initialRebirths
+
+                    task.wait(0.5)
+                end
+
+                lockPosition(false)
+                unequipAllPets()
+            end)
+        else
+            packFarmTarget = false
+            targetPackToggle:Set(false)
         end
     else
-        -- Unlock position
-        unlockPlayerPosition()
+        lockPosition(false)
+        unequipAllPets()
     end
 end)
 
-local packFarm = rebirthFarmFolder:AddSwitch("Rebirth Farm", function(bool)
-    isRunning = bool
-    
-    task.spawn(function()
-        while isRunning do
-            local currentRebirths = player.leaderstats.Rebirths.Value
-            local rebirthCost = 10000 + (5000 * currentRebirths)
-            
-            if player.ultimatesFolder:FindFirstChild("Golden Rebirth") then
-                local goldenRebirths = player.ultimatesFolder["Golden Rebirth"].Value
-                rebirthCost = math.floor(rebirthCost * (1 - (goldenRebirths * 0.1)))
+local infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
+    packFarmInfinite = bool
+
+    if bool then
+        if packFarmTarget then
+            packFarmTarget = false
+            targetPackToggle:Set(false)
+        end
+
+        if fastStrength then
+            fastStrength = false
+            fastStrengthToggle:Set(false)
+        end
+
+        task.spawn(function()
+            lockPosition(true)
+
+            while packFarmInfinite do
+                local currentRebirths = player.leaderstats.Rebirths.Value
+
+                local rebirthCost = 10000 + (5000 * currentRebirths)
+                if player.ultimatesFolder:FindFirstChild("Golden Rebirth") then
+                    local goldenRebirths = player.ultimatesFolder["Golden Rebirth"].Value
+                    rebirthCost = math.floor(rebirthCost * (1 - (goldenRebirths * 0.1)))
+                end
+
+                equipSpecificPacks("Swift Samurai", 8)
+
+                while packFarmInfinite and player.leaderstats.Strength.Value < rebirthCost do
+                    for i = 1, 10 do
+                        player.muscleEvent:FireServer("rep")
+                    end
+                    task.wait()
+                end
+
+                equipSpecificPacks("Tribal Overlord", 8)
+
+                local machine = findMachine("Jungle Bar Lift")
+                if machine and machine:FindFirstChild("interactSeat") then
+                    player.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
+                    repeat
+                        task.wait(0.1)
+                        pressE()
+                    until player.Character.Humanoid.Sit
+                end
+
+                local initialRebirths = player.leaderstats.Rebirths.Value
+                repeat
+                    ReplicatedStorage.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                    task.wait(0.1)
+                until player.leaderstats.Rebirths.Value > initialRebirths
+
+                task.wait(0.5)
             end
+
+            lockPosition(false)
             unequipAllPets()
-            task.wait(0.1)
-            equipUniquePet("Swift Samurai")
-            
-            while isRunning and player.leaderstats.Strength.Value < rebirthCost do
+        end)
+    else
+        lockPosition(false)
+        unequipAllPets()
+    end
+end)
+
+local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
+    fastStrength = bool
+
+    if bool then
+        if packFarmTarget then
+            packFarmTarget = false
+            targetPackToggle:Set(false)
+        end
+
+        if packFarmInfinite then
+            packFarmInfinite = false
+            infinitePackToggle:Set(false)
+        end
+
+        task.spawn(function()
+            equipSpecificPacks("Swift Samurai", 8)
+
+            while fastStrength do
                 for i = 1, 10 do
                     player.muscleEvent:FireServer("rep")
                 end
                 task.wait()
             end
-            unequipAllPets()
-            task.wait(0.1)
-            equipUniquePet("Tribal Overlord")
-            local machine = findMachine("Jungle Bar Lift")
-            if machine and machine:FindFirstChild("interactSeat") then
-                player.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
-                repeat
-                    task.wait(0.1)
-                    pressE()
-                until player.Character.Humanoid.Sit
-            end
-            local initialRebirths = player.leaderstats.Rebirths.Value
-            repeat
-                ReplicatedStorage.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
-                task.wait(0.1)
-            until player.leaderstats.Rebirths.Value > initialRebirths
-            if not isRunning then break end
-            task.wait()
-        end
-    end)
-end)
-
-local frameToggle = rebirthFarmFolder:AddSwitch("Hide Frames", function(bool)
-    local rSto = game:GetService("ReplicatedStorage")
-    for _, obj in pairs(rSto:GetChildren()) do
-        if obj.Name:match("Frame$") then
-            obj.Visible = not bool
-        end
-    end
-end)
-
-local speedGrind = rebirthFarmFolder:AddSwitch("Fast Strength", function(bool)
-    local isGrinding = bool
-    
-    if not bool then
-        unequipAllPets()
-        return
-    end
-    
-    equipUniquePet("Swift Samurai")
-    
-    for i = 1, 14 do
-        task.spawn(function()
-            while isGrinding do
-                player.muscleEvent:FireServer("rep")
-                task.wait()
-            end
         end)
+    else
+        unequipAllPets()
     end
 end)
-
