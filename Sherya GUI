@@ -75,7 +75,7 @@ end
 
 local function equipSpecificPacks(packName, count)
     unequipAllPets()
-    task.wait(0.2)
+    task.wait(0.1)
 
     local packs = {}
     for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
@@ -258,7 +258,7 @@ local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
                         task.wait(0.1)
                     until player.leaderstats.Rebirths.Value > initialRebirths
 
-                    task.wait(0.5)
+                    task.wait(0.1)
                 end
 
                 lockPosition(false)
@@ -326,7 +326,7 @@ local infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
                     task.wait(0.1)
                 until player.leaderstats.Rebirths.Value > initialRebirths
 
-                task.wait(0.5)
+                task.wait(0.1)
             end
 
             lockPosition(false)
@@ -359,7 +359,7 @@ local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(
                 for i = 1, 10 do
                     player.muscleEvent:FireServer("rep")
                 end
-                task.wait()
+                task.wait(0.1)
             end
         end)
     else
@@ -489,7 +489,7 @@ task.spawn(function()
     local function checkForRebirthStart()
         if not player.leaderstats or not player.leaderstats:FindFirstChild("Rebirths") then
             repeat
-                task.wait(0.5)
+                task.wait(0.1)
             until player.leaderstats and player.leaderstats:FindFirstChild("Rebirths")
         end
 
