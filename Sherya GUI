@@ -1,5 +1,5 @@
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/memejames/elerium-v2-ui-library//main/Library", true))()
-local window = library:AddWindow("Sherya Script", {
+local window = library:AddWindow("Sherya Script | Galaxy Hub", {
     main_color = Color3.fromRGB(200, 0, 255),
     min_size = Vector2.new(660, 660),
     can_resize = false,
@@ -12,42 +12,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
-local startTime = 0
-local rebirthStartTime = 0
-local startRebirths = 0
-local hasStarted = false
 local targetRebirth = math.huge
 
 local packFarmTarget = false
 local packFarmInfinite = false
 local fastStrength = false
-
-local function formatNumber(number)
-    if number >= 1e15 then return string.format("%.2fQ", number/1e15)
-    elseif number >= 1e12 then return string.format("%.2fT", number/1e12)
-    elseif number >= 1e9 then return string.format("%.2fB", number/1e9)
-    elseif number >= 1e6 then return string.format("%.2fM", number/1e6)
-    elseif number >= 1e3 then return string.format("%.2fK", number/1e3)
-    end
-    return tostring(math.floor(number))
-end
-
-local function formatNumberWithCommas(number)
-    local formatted = tostring(math.floor(number))
-    local k
-    while true do
-        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
-        if k == 0 then break end
-    end
-    return formatted
-end
-
-local function formatTime(seconds)
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = math.floor(seconds % 60)
-    return string.format("%02d:%02d:%02d", hours, minutes, secs)
-end
 
 local packRebirthValues = {
     [0] = 1,  
@@ -60,6 +29,14 @@ local packRebirthValues = {
     [7] = 14, 
     [8] = 16  
 }
+
+local function safeCall(func)
+    local success, result = pcall(func)
+    if not success then
+        warn("Error: " .. tostring(result))
+    end
+    return success, result
+end
 
 local function unequipAllPets()
     local petsFolder = player.petsFolder
@@ -91,6 +68,33 @@ local function equipSpecificPacks(packName, count)
     end
 
     return packsToEquip
+end
+
+local function equipSpecificPets(petName, maxPets)
+    safeCall(function()
+        -- Primero unequipar todas las pets
+        unequipAllPets()
+        
+        local petsToEquip = {}
+        local uniqueFolder = game.Players.LocalPlayer.petsFolder.Unique
+        
+        if uniqueFolder then
+            for _, pet in pairs(uniqueFolder:GetChildren()) do
+                if pet.Name == petName then
+                    table.insert(petsToEquip, pet)
+                end
+            end
+        end
+
+        local equippedCount = math.min(#petsToEquip, maxPets or 8)
+
+        for i = 1, equippedCount do
+            game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("equipPet", petsToEquip[i])
+            task.wait(0.1)
+        end
+        
+        print("Equipped " .. equippedCount .. " " .. petName .. " pets")
+    end)
 end
 
 local function findMachine(machineName)
@@ -134,44 +138,6 @@ local function lockPosition(lock)
         _G.positionConnection:Disconnect()
         _G.positionConnection = nil
     end
-end
-
-local function calculateOptimalPacks(currentRebirths, targetRebirths)
-    local rebirthsNeeded = targetRebirths - currentRebirths
-
-    if rebirthsNeeded <= 0 then
-        return 0
-    end
-
-    if rebirthsNeeded == 1 then
-        return 0
-    end
-
-    for packCount = 1, 8 do
-        if packRebirthValues[packCount] == rebirthsNeeded then
-            return packCount
-        end
-    end
-
-    for packCount = 8, 1, -1 do
-        if packRebirthValues[packCount] < rebirthsNeeded then
-            local remaining = rebirthsNeeded - packRebirthValues[packCount]
-
-            if remaining == 1 then
-                return packCount
-            end
-
-            for secondPackCount = 8, 0, -1 do
-                if packRebirthValues[secondPackCount] == remaining then
-                    return packCount
-                end
-            end
-
-            return packCount
-        end
-    end
-
-    return 0
 end
 
 Farm:AddTextBox("Target Rebirth Amount", function(text)
@@ -367,11 +333,23 @@ local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(
     end
 end)
 
-Farm:AddSwitch("Hide All Frames", function(state)
+-- Botón para Swift Samurai
+Farm:AddButton("Equip Swift Samurai (8x)", function()
+    equipSpecificPets("Swift Samurai", 8)
+end)
+
+-- Botón para Tribal Overlord
+Farm:AddButton("Equip Tribal Overlord (8x)", function()
+    equipSpecificPets("Tribal Overlord", 8)
+end)
+
+Farm:AddSwitch("Delete All Frames", function(state)
     local rSto = game:GetService("ReplicatedStorage")
     for _, obj in pairs(rSto:GetChildren()) do
         if obj.Name:match("Frame$") and obj:IsA("GuiObject") then
-            obj.Visible = not state
+            if state then
+                obj:Destroy()
+            end
         end
     end
 end)
@@ -502,14 +480,7 @@ end)
 
 -- Clean up connections when player leaves
 player.AncestryChanged:Connect(function()
-    if not player.Parent then
-        for itemName, connection in pairs(snackConnections) do
-            if connection then
-                task.cancel(connection)
-            end
-        end
-        snackConnections = {}
-        
+    if not player.Parent then        
         if _G.positionConnection then
             _G.positionConnection:Disconnect()
             _G.positionConnection = nil
@@ -524,197 +495,3 @@ player.AncestryChanged:Connect(function()
         if charConn then charConn:Disconnect() end
     end
 end)
-
--- Función para unequipar todas las pets
-local function unequipAllPets()
-    safeCall(function()
-        local petsFolder = game.Players.LocalPlayer.petsFolder
-        for _, folder in pairs(petsFolder:GetChildren()) do
-            if folder:IsA("Folder") then
-                for _, pet in pairs(folder:GetChildren()) do
-                    game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("unequipPet", pet)
-                end
-            end
-        end
-        task.wait(0.2)
-    end)
-end
-
--- Función para equipar pets específicas
-local function equipSpecificPets(petName, maxPets)
-    safeCall(function()
-        -- Primero unequipar todas las pets
-        unequipAllPets()
-        
-        local petsToEquip = {}
-        local uniqueFolder = game.Players.LocalPlayer.petsFolder.Unique
-        
-        if uniqueFolder then
-            for _, pet in pairs(uniqueFolder:GetChildren()) do
-                if pet.Name == petName then
-                    table.insert(petsToEquip, pet)
-                end
-            end
-        end
-
-        local equippedCount = math.min(#petsToEquip, maxPets or 8)
-
-        for i = 1, equippedCount do
-            game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("equipPet", petsToEquip[i])
-            task.wait(0.1)
-        end
-        
-        print("Equipped " .. equippedCount .. " " .. petName .. " pets")
-    end)
-end
-
--- Botón para Swift Samurai
-Farm:AddButton("Equip Swift Samurai (8x)", function()
-    equipSpecificPets("Swift Samurai", 8)
-end)
-
--- Botón para Tribal Overlord
-Farm:AddButton("Equip Tribal Overlord (8x)", function()
-    equipSpecificPets("Tribal Overlord", 8)
-end)
-
-local statsFolder = Farm:AddFolder("Rebirth Statistics")
-local runTimeLabel = statsFolder:AddLabel("RunTime: 00:00:00")
-local currentRebirthsLabel = statsFolder:AddLabel("Current Rebirths: 0")
-local rebirthGainsLabel = statsFolder:AddLabel("Rebirth Gains: 0")
-local targetRebirthLabel = statsFolder:AddLabel("Target Rebirth: None")
-local rebirthsNeededLabel = statsFolder:AddLabel("Rebirths Needed: N/A")
-local timeToTargetLabel = statsFolder:AddLabel("Time To Target: N/A")
-local estimatedCompletionLabel = statsFolder:AddLabel("Estimated Completion: N/A")
-local perMinuteLabel = statsFolder:AddLabel("Per Minute: 0")
-local perHourLabel = statsFolder:AddLabel("Per Hour: 0")
-local hours12Label = statsFolder:AddLabel("12 Hours: 0")
-local hours24Label = statsFolder:AddLabel("24 Hours: 0")
-
-local settingsFolder = Farm:AddFolder("Settings")
-settingsFolder:AddButton("Reset RunTime", function()
-    startTime = os.time()
-    rebirthStartTime = os.time()
-    if player.leaderstats and player.leaderstats.Rebirths then
-        startRebirths = player.leaderstats.Rebirths.Value
-        hasStarted = true
-    else
-        startRebirths = 0
-        hasStarted = false
-    end
-end)
-
-task.spawn(function()
-    startTime = os.time()
-    rebirthStartTime = os.time()
-
-    if player.leaderstats and player.leaderstats.Rebirths then
-        startRebirths = player.leaderstats.Rebirths.Value
-    end
-
-    while true do
-        if player.leaderstats and player.leaderstats.Rebirths then
-            local currentRebirths = player.leaderstats.Rebirths.Value
-            local elapsedTime = os.time() - startTime
-            local rebirthElapsedTime = os.time() - rebirthStartTime
-
-            currentRebirthsLabel.Text = string.format("Current Rebirths: %s", 
-                formatNumberWithCommas(currentRebirths))
-
-            if targetRebirth ~= math.huge then
-                targetRebirthLabel.Text = string.format("Target Rebirth: %s", 
-                    formatNumberWithCommas(targetRebirth))
-            else
-                targetRebirthLabel.Text = "Target Rebirth: None"
-            end
-
-            if hasStarted then
-                local gainedRebirths = currentRebirths - startRebirths
-
-                rebirthGainsLabel.Text = string.format("Rebirth Gains: %s", 
-                    formatNumberWithCommas(gainedRebirths))
-
-                    if rebirthElapsedTime > 0 then
-                        local perMinute = gainedRebirths / (rebirthElapsedTime / 60)
-                        local perHour = perMinute * 60
-
-                        perMinuteLabel.Text = string.format("Per Minute: %s", 
-                            formatNumberWithCommas(perMinute))
-                        perHourLabel.Text = string.format("Per Hour: %s", 
-                            formatNumberWithCommas(perHour))
-                        hours12Label.Text = string.format("12 Hours: %s", 
-                            formatNumberWithCommas(perHour * 12))
-                        hours24Label.Text = string.format("24 Hours: %s", 
-                            formatNumberWithCommas(perHour * 24))
-
-                        if targetRebirth ~= math.huge then
-                            local rebirthsNeeded = targetRebirth - currentRebirths
-                            rebirthsNeededLabel.Text = string.format("Rebirths Needed: %s",
-                                formatNumberWithCommas(rebirthsNeeded))
-
-                            if perHour > 0 and rebirthsNeeded > 0 then
-                                local hoursToTarget = rebirthsNeeded / perHour
-                                local timeToTarget = formatTime(hoursToTarget * 3600)
-                                timeToTargetLabel.Text = string.format("Time To Target: %s", timeToTarget)
-
-                                local completionTimestamp = os.time() + (hoursToTarget * 3600)
-                                local completionDate = os.date("%m/%d/%Y %H:%M", completionTimestamp)
-                                estimatedCompletionLabel.Text = string.format("Estimated Completion: %s", completionDate)
-                            elseif rebirthsNeeded <= 0 then
-                                timeToTargetLabel.Text = "Time To Target: Reached!"
-                                estimatedCompletionLabel.Text = "Estimated Completion: Completed!"
-                            else
-                                timeToTargetLabel.Text = "Time To Target: N/A"
-                                estimatedCompletionLabel.Text = "Estimated Completion: N/A"
-                            end
-                        else
-                            rebirthsNeededLabel.Text = "Rebirths Needed: N/A"
-                            timeToTargetLabel.Text = "Time To Target: N/A"
-                            estimatedCompletionLabel.Text = "Estimated Completion: N/A"
-                        end
-                    end
-
-                    local timeString = formatTime(elapsedTime)
-                    runTimeLabel.Text = string.format("RunTime: %s", timeString)
-                else
-                    rebirthGainsLabel.Text = "Rebirth Gains: 0"
-                    perMinuteLabel.Text = "Per Minute: 0"
-                    perHourLabel.Text = "Per Hour: 0"
-                    hours12Label.Text = "12 Hours: 0"
-                    hours24Label.Text = "24 Hours: 0"
-
-                    runTimeLabel.Text = "RunTime: 00:00:00"
-
-                    rebirthsNeededLabel.Text = "Rebirths Needed: N/A"
-                    timeToTargetLabel.Text = "Time To Target: N/A"
-                    estimatedCompletionLabel.Text = "Estimated Completion: N/A"
-                end
-            else
-                currentRebirthsLabel.Text = "Current Rebirths: Waiting..."
-            end
-
-            task.wait(1)
-        end
-    end)
-
-    local function checkForRebirthStart()
-        if not player.leaderstats or not player.leaderstats:FindFirstChild("Rebirths") then
-            repeat
-                task.wait(0.5)
-            until player.leaderstats and player.leaderstats:FindFirstChild("Rebirths")
-        end
-
-        local initialRebirths = player.leaderstats.Rebirths.Value
-
-        player.leaderstats.Rebirths:GetPropertyChangedSignal("Value"):Connect(function()
-            local newRebirths = player.leaderstats.Rebirths.Value
-            if not hasStarted and newRebirths > initialRebirths then
-                startTime = os.time()
-                rebirthStartTime = os.time()
-                startRebirths = initialRebirths
-                hasStarted = true
-            end
-        end)
-    end
-
-    task.spawn(checkForRebirthStart)
