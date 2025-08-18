@@ -32,7 +32,7 @@ setupAntiAFK()
 -- Create Main Window
 local window = library:AddWindow("Sherya Script | Galaxy Hub", {
     main_color = Color3.fromRGB(144, 0, 194),
-    min_size = Vector2.new(550, 600),
+    min_size = Vector2.new(660, 660),
     can_resize = true,
 })
 
@@ -42,7 +42,9 @@ local miscTab = window:AddTab("Misc")
 local pets = window:AddTab("Pets")
 local Stats = window:AddTab("Stats")
 local Calculator = window:AddTab("Calculator")
+local DamageTab = window:AddTab("Damage")
 local Killing = window:AddTab("Killer")
+local killingv2 = window:AddTab("Killer V2")
 local Teleport = window:AddTab("Teleport")
 local creditsTab = window:AddTab("Credits")
 
@@ -2933,10 +2935,10 @@ local rates = {
 }
 
 -- Crear los 4 folders
-local strengthFolder = Calculator:AddFolder("  💪 Strength")
-local durabilityFolder = Calculator:AddFolder("  🛡️ Durability") 
-local rebirthsFolder = Calculator:AddFolder("  🔄 Rebirths")
-local killsFolder = Calculator:AddFolder("  ⚔️ Kills")
+local strengthFolder = Calculator:AddFolder("  Strength")
+local durabilityFolder = Calculator:AddFolder("  Durability") 
+local rebirthsFolder = Calculator:AddFolder("  Rebirths")
+local killsFolder = Calculator:AddFolder("  Kills")
 
 -- Función para obtener valor actual de estadística
 local function getCurrentValue(statName)
@@ -3067,7 +3069,7 @@ local function updateLabels(labels, rate, statName)
         labels.perWeek.Text = "Per Week: Calculando..."
         labels.perMonth.Text = "Per Month: Calculando..."
     else
-        labels.status.Text = "Status: ✅ Activo"
+        labels.status.Text = "Status:  Activo"
         
         local perMinute = rate
         local perHour = rate * 60
@@ -3092,7 +3094,7 @@ local function initializeMeasurement()
         previousValues[statName] = getCurrentValue(statName)
     end
     
-    print("📊 Calculator iniciado automáticamente")
+    print(" Calculator iniciado automáticamente")
 end
 
 -- Función para reiniciar todo
@@ -3101,7 +3103,7 @@ local function restartAll()
     for statName, _ in pairs(rates) do
         rates[statName] = 0
     end
-    print("🔄 Calculator reiniciado")
+    print(" Calculator reiniciado")
 end
 
 -- Función principal de cálculo
@@ -3131,7 +3133,7 @@ local function calculateRates()
 end
 
 -- Botón de reinicio
-Calculator:AddButton("🔄 Reiniciar Calculator", function()
+Calculator:AddButton(" Reiniciar Calculator", function()
     restartAll()
 end)
 
@@ -3150,3 +3152,118 @@ task.spawn(function()
 end)
 
 print("📊 Calculator cargado - Iniciará automáticamente en 2 segundos")
+
+-- Crear el folder principal
+local DamageFolder = DamageTab:AddFolder("Damage Calculator")
+
+-- CALCULADORA DE DAMAGE
+local baseStrength = 0
+local resultadoLabels = {}
+
+DamageFolder:AddLabel("Pack Damage Calculator")
+DamageFolder:AddTextBox("Base Strength (ej: 1.27Qa, T, B)", function(text)
+    local unidades = { ["QA"] = 1e15, ["T"] = 1e12, ["B"] = 1e9 }
+    text = text:upper()
+    for u, m in pairs(unidades) do
+        if text:find(u) then
+            local num = tonumber(text:match("(%d+%.?%d*)"))
+            if num then
+                baseStrength = num * m
+                return
+            end
+        end
+    end
+    baseStrength = tonumber(text:match("(%d+%.?%d*)")) or 0
+end)
+
+local mensajeLabel = DamageFolder:AddLabel("")
+for i = 1, 8 do
+    resultadoLabels[i] = DamageFolder:AddLabel(string.format("%d pack(s): -", i))
+end
+
+DamageFolder:AddButton("Calcular Damage", function()
+    if baseStrength <= 0 then
+        mensajeLabel.Text = "Ingresa un valor válido."
+        for i = 1, 8 do
+            resultadoLabels[i].Text = string.format("%d pack(s): -", i)
+        end
+        return
+    end
+    mensajeLabel.Text = ""
+    local danoAjustado = baseStrength * 0.10
+    local incremento = 0.335
+    for pack = 1, 8 do
+        local mult = 1 + (pack * incremento)
+        local valor = danoAjustado * mult
+        local disp
+        if valor >= 1e15 then
+            disp = string.format("%.3f Qa", valor / 1e15)
+        elseif valor >= 1e12 then
+            disp = string.format("%.2f T", valor / 1e12)
+        elseif valor >= 1e9 then
+            disp = string.format("%.2f B", valor / 1e9)
+        else
+            disp = tostring(math.floor(valor))
+        end
+        resultadoLabels[pack].Text = string.format("%d pack(s): %s", pack, disp)
+    end
+end)
+
+-- CALCULADORA DE DURABILIDAD
+local DurabilityFolder = DamageTab:AddFolder("Durability Calculator")
+local baseDurability = 0
+local durabilityLabels = {}
+
+DurabilityFolder:AddLabel("Pack Durability Calculator")
+DurabilityFolder:AddTextBox("Base Durability (ej: 500K, 1.5M, 2B)", function(text)
+    local unidades = { ["K"] = 1e3, ["M"] = 1e6, ["B"] = 1e9, ["T"] = 1e12, ["QA"] = 1e15 }
+    text = text:upper()
+    for u, m in pairs(unidades) do
+        if text:find(u) then
+            local num = tonumber(text:match("(%d+%.?%d*)"))
+            if num then
+                baseDurability = num * m
+                return
+            end
+        end
+    end
+    baseDurability = tonumber(text:match("(%d+%.?%d*)")) or 0
+end)
+
+local mensajeDurabilityLabel = DurabilityFolder:AddLabel("")
+for i = 1, 8 do
+    durabilityLabels[i] = DurabilityFolder:AddLabel(string.format("%d pack(s): -", i))
+end
+
+DurabilityFolder:AddButton("Calcular Durabilidad", function()
+    if baseDurability <= 0 then
+        mensajeDurabilityLabel.Text = "Ingresa un valor válido."
+        for i = 1, 8 do
+            durabilityLabels[i].Text = string.format("%d pack(s): -", i)
+        end
+        return
+    end
+    mensajeDurabilityLabel.Text = ""
+    -- Incremento de durabilidad por pack (ajusta según el juego)
+    local incrementoPorPack = 0.25 -- 25% por pack, ajusta según sea necesario
+    
+    for pack = 1, 8 do
+        local mult = 1 + (pack * incrementoPorPack)
+        local valor = baseDurability * mult
+        local disp
+        if valor >= 1e15 then
+            disp = string.format("%.3f Qa", valor / 1e15)
+        elseif valor >= 1e12 then
+            disp = string.format("%.2f T", valor / 1e12)
+        elseif valor >= 1e9 then
+            disp = string.format("%.2f B", valor / 1e9)
+        elseif valor >= 1e6 then
+            disp = string.format("%.2f M", valor / 1e6)
+        elseif valor >= 1e3 then
+            disp = string.format("%.2f K", valor / 1e3)
+        else
+            disp = tostring(math.floor(valor))
+        end
+        durabilityLabels[pack].Text = string.format("%d pack(s): %s", pack, disp)
+    end
+end)
