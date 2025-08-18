@@ -5,7 +5,10 @@ local window = library:AddWindow("Sherya Script | Galaxy Hub", {
     can_resize = false,
 })
 
-local Farm = window:AddTab("Farm")
+local farmTab = window:AddTab("Farm")
+
+local PackFarmFolder = farmTab:AddFolder("  Packs Farm")
+
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -174,7 +177,7 @@ local function calculateOptimalPacks(currentRebirths, targetRebirths)
     return 0
 end
 
-Farm:AddTextBox("Target Rebirth Amount", function(text)
+PackFarmFolder:AddTextBox("Target Rebirth Amount", function(text)
     local num = tonumber(text)
     if num then
         targetRebirth = num
@@ -183,7 +186,7 @@ Farm:AddTextBox("Target Rebirth Amount", function(text)
     end
 end)
 
-local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
+local targetPackToggle = PackFarmFolder:AddSwitch("Pack Farm | Target", function(bool)
     packFarmTarget = bool
 
     if bool then
@@ -274,7 +277,7 @@ local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
     end
 end)
 
-local infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
+local infinitePackToggle = PackFarmFolder:AddSwitch("Pack Farm | Infinite", function(bool)
     packFarmInfinite = bool
 
     if bool then
@@ -338,7 +341,7 @@ local infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
     end
 end)
 
-local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
+local fastStrengthToggle = PackFarmFolder:AddSwitch("Pack Farm | Fast Strength", function(bool)
     fastStrength = bool
 
     if bool then
@@ -367,7 +370,7 @@ local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(
     end
 end)
 
-Farm:AddSwitch("Delete All Frames", function(state)
+PackFarmFolder:AddSwitch("Delete All Frames", function(state)
     local rSto = game:GetService("ReplicatedStorage")
     for _, obj in pairs(rSto:GetChildren()) do
         if obj.Name:match("Frame$") and obj:IsA("GuiObject") then
@@ -579,7 +582,7 @@ PackFarmFolder:AddButton("Equip Tribal Overlord (8x)", function()
     equipSpecificPets("Tribal Overlord", 8)
 end)
 
-local statsFolder = Farm:AddFolder("Rebirth Statistics")
+local statsFolder = PackFarmFolder:AddFolder("Rebirth Statistics")
 local runTimeLabel = statsFolder:AddLabel("RunTime: 00:00:00")
 local currentRebirthsLabel = statsFolder:AddLabel("Current Rebirths: 0")
 local rebirthGainsLabel = statsFolder:AddLabel("Rebirth Gains: 0")
@@ -592,7 +595,7 @@ local perHourLabel = statsFolder:AddLabel("Per Hour: 0")
 local hours12Label = statsFolder:AddLabel("12 Hours: 0")
 local hours24Label = statsFolder:AddLabel("24 Hours: 0")
 
-local settingsFolder = Farm:AddFolder("Settings")
+local settingsFolder = PackFarmFolder:AddFolder("Settings")
 settingsFolder:AddButton("Reset RunTime", function()
     startTime = os.time()
     rebirthStartTime = os.time()
