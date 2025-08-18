@@ -3555,141 +3555,161 @@ end)
 
 Killing:AddLabel("---Egg Obligatorio And Nan---")
 
+-- Switch principal
 Killing:AddSwitch("Punch Death", function(value)
     allActive = value
 
+    -- Limpiar conexiones existentes
     for _, conn in pairs(connections) do
-        if conn and conn.Disconnect then
-            conn:Disconnect()
-        elseif typeof(conn) == "RBXScriptConnection" then
-            conn:Disconnect()
+        if conn and typeof(conn) == "RBXScriptConnection" then
+            safeCall(function() conn:Disconnect() end)
         end
     end
     connections = {}
 
     if value then
+        -- Auto Punch
         _G.AutoPunchToggle = true
         spawn(function()
-            local backpack = player:WaitForChild("Backpack")
             local character = player.Character or player.CharacterAdded:Wait()
+            local backpack = player:WaitForChild("Backpack")
             local hand = "rightHand"
 
             local function getMuscleEvent()
                 return player:FindFirstChild("muscleEvent")
             end
 
-            player.CharacterAdded:Connect(function(char)
+            -- Conexión para actualizar character
+            connections.CharacterAdded = player.CharacterAdded:Connect(function(char)
                 character = char
             end)
 
-            player.ChildAdded:Connect(function(child)
+            -- Conexión para actualizar backpack
+            connections.BackpackAdded = player.ChildAdded:Connect(function(child)
                 if child.Name == "Backpack" then
                     backpack = child
                 end
             end)
 
-            while _G.AutoPunchToggle do
-                local muscleEvent = getMuscleEvent()
-                character = player.Character
-                if character and character:FindFirstChild("Humanoid") and muscleEvent then
-                    local punchEquipped = character:FindFirstChild("Punch")
-                    local punchInBackpack = backpack:FindFirstChild("Punch")
+            -- Loop principal de Auto Punch
+            while _G.AutoPunchToggle and allActive do
+                safeCall(function()
+                    local muscleEvent = getMuscleEvent()
+                    character = player.Character
+                    
+                    if character and character:FindFirstChild("Humanoid") and muscleEvent then
+                        local punchEquipped = character:FindFirstChild("Punch")
+                        local punchInBackpack = backpack and backpack:FindFirstChild("Punch")
 
-                    if not punchEquipped and punchInBackpack then
-                        character.Humanoid:EquipTool(punchInBackpack)
+                        if not punchEquipped and punchInBackpack then
+                            character.Humanoid:EquipTool(punchInBackpack)
+                        end
+
+                        muscleEvent:FireServer("punch", hand)
                     end
-
-                    muscleEvent:FireServer("punch", hand)
-                end
+                end)
                 task.wait(0.0001)
             end
         end)
 
+        -- Auto Protein Egg
         _G.AutoProteinEgg = true
-        local toolName = "Protein Egg"
-        local character = player.Character or player.CharacterAdded:Wait()
-
-        local function restoreVisibility(tool)
-            for _, part in ipairs(tool:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = 0
-                    pcall(function() part.LocalTransparencyModifier = 0 end)
-                end
-            end
-        end
-
-        local function findTool()
-            local tool = player.Backpack:FindFirstChild(toolName)
-            if tool then return tool end
-            tool = StarterPack:FindFirstChild(toolName)
-            if tool then return tool end
-            tool = ReplicatedStorage:FindFirstChild(toolName)
-            return tool
-        end
-
-        local function forceEquip(tool)
-            if not (character and character:FindFirstChild("Humanoid")) then return end
-            safeCall(function()
-                character.Humanoid:EquipTool(tool)
-            end)
-            task.wait(0.1)
-
-            if not character:FindFirstChild(toolName) then
-                tool.Parent = character
-                task.wait(0.1)
-            end
-
-            local equipped = character:FindFirstChild(toolName)
-            if equipped then
-                restoreVisibility(equipped)
-            end
-        end
-
-        local function equipIfNeeded()
-            if not _G.AutoProteinEgg or not character then return end
-
-            local equipped = character:FindFirstChild(toolName)
-            local needEquip = false
-
-            if not equipped then
-                needEquip = true
-            else
-                for _, part in ipairs(equipped:GetDescendants()) do
-                    if part:IsA("BasePart") and part.Transparency > 0 then
-                        needEquip = true
-                        break
-                    end
-                end
-            end
-
-            if needEquip then
-                local tool = findTool()
-                if tool then
-                    if tool.Parent ~= player.Backpack then
-                        local clone = tool:Clone()
-                        clone.Parent = player.Backpack
-                        tool = clone
-                    end
-                    forceEquip(tool)
-                end
-            end
-        end
-
-        player.CharacterAdded:Connect(function(char)
-            character = char
-            task.wait(1)
-            equipIfNeeded()
-        end)
-
-        player.Backpack.ChildAdded:Connect(function(child)
-            if _G.AutoProteinEgg and child.Name == toolName then
-                task.wait(0.2)
-                equipIfNeeded()
-            end
-        end)
-
         spawn(function()
-            while _G.AutoProteinEgg do
+            local toolName = "Protein Egg"
+            local character = player.Character or player.CharacterAdded:Wait()
+
+            local function restoreVisibility(tool)
+                if not tool then return end
+                for _, part in ipairs(tool:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        safeCall(function()
+                            part.Transparency = 0
+                            part.LocalTransparencyModifier = 0
+                        end)
+                    end
+                end
+            end
+
+            local function findTool()
+                local tool = player.Backpack:FindFirstChild(toolName)
+                if tool then return tool end
+                
+                tool = starterPack:FindFirstChild(toolName)
+                if tool then return tool end
+                
+                tool = replicatedStorage:FindFirstChild(toolName)
+                return tool
+            end
+
+            local function forceEquip(tool)
+                if not (character and character:FindFirstChild("Humanoid") and tool) then return end
+                
+                safeCall(function()
+                    character.Humanoid:EquipTool(tool)
+                end)
+                task.wait(0.1)
+
+                if not character:FindFirstChild(toolName) then
+                    safeCall(function()
+                        tool.Parent = character
+                    end)
+                    task.wait(0.1)
+                end
+
+                local equipped = character:FindFirstChild(toolName)
+                if equipped then
+                    restoreVisibility(equipped)
+                end
+            end
+
+            local function equipIfNeeded()
+                if not _G.AutoProteinEgg or not character or not allActive then return end
+
+                local equipped = character:FindFirstChild(toolName)
+                local needEquip = false
+
+                if not equipped then
+                    needEquip = true
+                else
+                    for _, part in ipairs(equipped:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Transparency > 0 then
+                            needEquip = true
+                            break
+                        end
+                    end
+                end
+
+                if needEquip then
+                    local tool = findTool()
+                    if tool then
+                        if tool.Parent ~= player.Backpack then
+                            safeCall(function()
+                                local clone = tool:Clone()
+                                clone.Parent = player.Backpack
+                                tool = clone
+                            end)
+                        end
+                        forceEquip(tool)
+                    end
+                end
+            end
+
+            -- Conexiones para Protein Egg
+            connections.CharacterAddedEgg = player.CharacterAdded:Connect(function(char)
+                character = char
+                task.wait(1)
+                equipIfNeeded()
+            end)
+
+            connections.BackpackChildAdded = player.Backpack.ChildAdded:Connect(function(child)
+                if _G.AutoProteinEgg and child.Name == toolName then
+                    task.wait(0.2)
+                    equipIfNeeded()
+                end
+            end)
+
+            -- Loop principal de Protein Egg
+            while _G.AutoProteinEgg and allActive do
                 equipIfNeeded()
                 task.wait(0.5)
             end
@@ -3697,118 +3717,131 @@ Killing:AddSwitch("Punch Death", function(value)
 
         -- Anti Fly
         getgenv().AntiFlyActive = true
-        connections.AntiFly = RunService.Heartbeat:Connect(function()
+        connections.AntiFly = runService.Heartbeat:Connect(function()
+            if not getgenv().AntiFlyActive or not allActive then return end
+            
             local char = player.Character
             if not char then return end
+            
             local root = char:FindFirstChild("HumanoidRootPart")
             if not root then return end
+            
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             if not humanoid then return end
 
-            local ray = Ray.new(root.Position, Vector3.new(0, -500, 0))
-            local hit, position = workspace:FindPartOnRay(ray, char)
-
-            if hit then
-                local groundY = position.Y
-                local currentY = root.Position.Y
-                if currentY - groundY > 0.5 then
-                    root.CFrame = CFrame.new(root.Position.X, groundY + 0.5, root.Position.Z)
-                    humanoid.PlatformStand = true
-                    humanoid.PlatformStand = false
+            safeCall(function()
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                raycastParams.FilterDescendantsInstances = {char}
+                
+                local raycastResult = workspace:Raycast(root.Position, Vector3.new(0, -500, 0), raycastParams)
+                
+                if raycastResult then
+                    local groundY = raycastResult.Position.Y
+                    local currentY = root.Position.Y
+                    if currentY - groundY > 0.5 then
+                        root.CFrame = CFrame.new(root.Position.X, groundY + 0.5, root.Position.Z)
+                        humanoid.PlatformStand = true
+                        humanoid.PlatformStand = false
+                    end
                 end
-            end
+            end)
         end)
 
         -- Anti Lag
-        local function softAntiLag()
-            local classesToClean = {
-                ["ParticleEmitter"] = true,
-                ["Trail"] = true,
-                ["Smoke"] = true,
-                ["Fire"] = true
-            }
+        spawn(function()
+            local function softAntiLag()
+                local classesToClean = {
+                    ["ParticleEmitter"] = true,
+                    ["Trail"] = true,
+                    ["Smoke"] = true,
+                    ["Fire"] = true
+                }
 
-            for _, obj in ipairs(workspace:GetChildren()) do
-                if obj:IsA("Model") or obj:IsA("Part") then
-                    for _, sub in ipairs(obj:GetChildren()) do
-                        if classesToClean[sub.ClassName] then
-                            safeCall(function()
-                                sub:Destroy()
-                            end)
+                safeCall(function()
+                    for _, obj in ipairs(workspace:GetChildren()) do
+                        if obj:IsA("Model") or obj:IsA("Part") then
+                            for _, sub in ipairs(obj:GetChildren()) do
+                                if classesToClean[sub.ClassName] then
+                                    sub:Destroy()
+                                end
+                            end
                         end
                     end
+                end)
+
+                local terrain = workspace:FindFirstChildOfClass("Terrain")
+                if terrain then
+                    safeCall(function()
+                        terrain.WaterWaveSize = 0
+                        terrain.WaterReflectance = 0
+                        terrain.WaterTransparency = 1
+                    end)
                 end
             end
 
-            local terrain = workspace:FindFirstChildOfClass("Terrain")
-            if terrain then
-                terrain.WaterWaveSize = 0
-                terrain.WaterReflectance = 0
-                terrain.WaterTransparency = 1
+            local function setSunsetSky()
+                safeCall(function()
+                    local lighting = game:GetService("Lighting")
+                    lighting.ClockTime = 18
+                    lighting.Brightness = 1.5
+                    lighting.OutdoorAmbient = Color3.fromRGB(150, 100, 80)
+                    lighting.FogColor = Color3.fromRGB(200, 120, 100)
+                    lighting.FogEnd = 500
+
+                    for _, v in ipairs(lighting:GetChildren()) do
+                        if v:IsA("Sky") then
+                            v:Destroy()
+                        end
+                    end
+
+                    local sky = Instance.new("Sky")
+                    sky.Name = "SunsetSky"
+                    sky.SkyboxBk = "rbxassetid://131889017"
+                    sky.SkyboxDn = "rbxassetid://131889017"
+                    sky.SkyboxFt = "rbxassetid://131889017"
+                    sky.SkyboxLf = "rbxassetid://131889017"
+                    sky.SkyboxRt = "rbxassetid://131889017"
+                    sky.SkyboxUp = "rbxassetid://131889017"
+                    sky.SunAngularSize = 10
+                    sky.MoonAngularSize = 0
+                    sky.SunTextureId = "rbxassetid://644432992"
+                    sky.Parent = lighting
+                end)
             end
-        end
 
-        local function setSunsetSky()
-            local lighting = game:GetService("Lighting")
-            lighting.ClockTime = 18
-            lighting.Brightness = 1.5
-            lighting.OutdoorAmbient = Color3.fromRGB(150, 100, 80)
-            lighting.FogColor = Color3.fromRGB(200, 120, 100)
-            lighting.FogEnd = 500
-
-            for _, v in ipairs(lighting:GetChildren()) do
-                if v:IsA("Sky") then
-                    v:Destroy()
-                end
-            end
-
-            local sky = Instance.new("Sky")
-            sky.Name = "SunsetSky"
-            sky.SkyboxBk = "rbxassetid://131889017"
-            sky.SkyboxDn = "rbxassetid://131889017"
-            sky.SkyboxFt = "rbxassetid://131889017"
-            sky.SkyboxLf = "rbxassetid://131889017"
-            sky.SkyboxRt = "rbxassetid://131889017"
-            sky.SkyboxUp = "rbxassetid://131889017"
-            sky.SunAngularSize = 10
-            sky.MoonAngularSize = 0
-            sky.SunTextureId = "rbxassetid://644432992"
-            sky.Parent = lighting
-        end
-
-        softAntiLag()
-        setSunsetSky()
+            softAntiLag()
+            setSunsetSky()
+        end)
 
         -- Auto Tropical Shake
         spawn(function()
             local backpack = player:WaitForChild("Backpack")
             while allActive do
-                local shake = backpack:FindFirstChild("Tropical Shake")
-                if not shake then
-                    break
-                end
+                safeCall(function()
+                    local shake = backpack:FindFirstChild("Tropical Shake")
+                    if not shake then
+                        return
+                    end
 
-                shake.Parent = player.Character
-                RunService.Heartbeat:Wait()
+                    shake.Parent = player.Character
+                    runService.Heartbeat:Wait()
 
-                if shake.Activate then
-                    shake:Activate()
-                elseif mouse1click then
-                    mouse1click()
-                end
-
+                    if shake.Activate then
+                        shake:Activate()
+                    elseif mouse1click then
+                        mouse1click()
+                    end
+                end)
                 task.wait(0.1)
             end
         end)
+
     else
+        -- Desactivar todo
         _G.AutoPunchToggle = false
         _G.AutoProteinEgg = false
         getgenv().AntiFlyActive = false
-
-        if connections.AntiFly then
-            connections.AntiFly:Disconnect()
-            connections.AntiFly = nil
-        end
     end
 end)
 
@@ -3849,7 +3882,7 @@ Killing:AddSwitch("Death Ring", function(bool)
 
                 for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
                     if player == game.Players.LocalPlayer or isWhitelisted(player) then
-                        continue                      
+                        continue                        
                     end
 
                     if isPlayerAlive(player) then
@@ -4075,9 +4108,13 @@ spawn(function()
         task.wait(1)
     end
 end)
-killingv2:AddLabel("---Buen Juego---")
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 local godModeToggle = false
+
+-- God Mode
 killingv2:AddSwitch("God Mode (Brawl)", function(State)
     godModeToggle = State
     if State then
@@ -4095,39 +4132,27 @@ local targetPlayer = nil
 local tpEnabled = false
 
 -- Textbox para escribir el nombre del jugador
-killingv2:AddTextbox({
-    Name = "Jugador objetivo",
-    Default = "",
-    PlaceholderText = "Escribe el nombre aquí",
-    Callback = function(value)
-        targetPlayer = value
-    end
-})
+killingv2:AddTextbox("Jugador objetivo", function(value)
+    targetPlayer = value
+end)
 
 -- Switch para teletransportarse automáticamente
-killingv2:AddSwitch({
-    Name = "Auto TP al jugador",
-    Default = false,
-    Callback = function(state)
-        tpEnabled = state
-        if tpEnabled then
-            task.spawn(function()
-                while tpEnabled do
-                    local Players = game:GetService("Players")
-                    local LocalPlayer = Players.LocalPlayer
-                    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+killingv2:AddSwitch("Auto TP al jugador", function(State)
+    tpEnabled = State
+    if State then
+        task.spawn(function()
+            while tpEnabled do
+                local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
 
-                    if HumanoidRootPart and targetPlayer then
-                        local Target = Players:FindFirstChild(targetPlayer)
-                        if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
-                            HumanoidRootPart.CFrame = Target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-                        end
+                if HumanoidRootPart and targetPlayer then
+                    local Target = Players:FindFirstChild(targetPlayer)
+                    if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
+                        HumanoidRootPart.CFrame = Target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
                     end
-                    task.wait(0.2) -- Velocidad de TP
                 end
-            end)
-        end
+                task.wait(0.2) -- Velocidad de TP
+            end
+        end)
     end
-})
-
+end)
