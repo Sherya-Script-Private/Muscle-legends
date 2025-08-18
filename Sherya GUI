@@ -257,7 +257,7 @@ local autoWinBrawlSwitch = BrawlFolder:AddSwitch("Auto Win Brawls", function(boo
 end)
 
 -- Auto Join Brawl Only - FIXED to join only once and properly turn off
-autoBrawlsFolder:AddSwitch("Auto Brawls", function(bool)
+BrawlFolder:AddSwitch("Auto Brawls", function(bool)
     getgenv().autoJoinBrawl = bool
     
     task.spawn(function()
