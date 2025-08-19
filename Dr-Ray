@@ -1,1 +1,179 @@
+local DrRayLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/DrRay-UI-Library/main/DrRay.lua"))()
+local window = DrRayLibrary:Load("Sherya Script | Galaxy Hub", "Default")
 
+-- Tabs
+local mainTab = DrRayLibrary.newTab("Main", "ImageIdHere")
+local miscTab = DrRayLibrary.newTab("Misc", "ImageIdHere")
+local killerTab = DrRayLibrary.newTab("Killer", "ImageIdHere")
+local playersTab = DrRayLibrary.newTab("Teleport", "ImageIdHere")
+local creditsTab = DrRayLibrary.newTab("Credits", "ImageIdHere")
+
+
+-- Auto Punch
+local autoPunch = false
+mainTab.newToggle("Auto Punch", "Activa el auto punch", false, function(state)
+    autoPunch = state
+    if autoPunch then equipTool("Punch") end
+    task.spawn(function()
+        while autoPunch do
+            pcall(function()
+                local character = player.Character or player.CharacterAdded:Wait()
+                local tool = character:FindFirstChild("Punch")
+                if tool then
+                    tool:Activate()
+                else
+                    equipTool("Punch")
+                end
+            end)
+            task.wait(0.1)
+        end
+    end)
+end)
+
+local godModeToggle = false
+mainTab.newToggle("God Mode (Brawl)", function(State)
+    godModeToggle = State
+    if State then
+        task.spawn(function()
+            while godModeToggle do
+                game:GetService("ReplicatedStorage").rEvents.brawlEvent:FireServer("joinBrawl")
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+local whitelist = {} 
+
+mainTab.newToggle("Auto Win Brawls", function(bool)
+    getgenv().autoWinBrawl = bool
+
+    local function equipPunch()
+        if not getgenv().autoWinBrawl then return end
+        local character = game.Players.LocalPlayer.Character
+        if not character then return false end
+        if character:FindFirstChild("Punch") then return true end
+        local backpack = game.Players.LocalPlayer.Backpack
+        if not backpack then return false end
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool.ClassName == "Tool" and tool.Name == "Punch" then
+                tool.Parent = character
+                return true
+            end
+        end
+        return false
+    end
+
+    local function isValidTarget(player)
+        if not player or not player.Parent then return false end
+        if player == Players.LocalPlayer then return false end
+        if _G.whitelistedPlayers and table.find(_G.whitelistedPlayers, player.Name) then return false end
+        local character = player.Character
+        if not character or not character.Parent then return false end
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return false end
+        if not humanoid.Health or humanoid.Health <= 0 then return false end
+        if humanoid:GetState() == Enum.HumanoidStateType.Dead then return false end
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart or not rootPart.Parent then return false end
+        return true
+    end
+
+    local function isLocalPlayerReady()
+        local player = game.Players.LocalPlayer
+        if not player then return false end
+        local character = player.Character
+        if not character or not character.Parent then return false end
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then return false end
+        local leftHand = character:FindFirstChild("LeftHand")
+        local rightHand = character:FindFirstChild("RightHand")
+        return (leftHand ~= nil or rightHand ~= nil)
+    end
+
+    local function safeTouchInterest(targetPart, localPart)
+        if not targetPart or not targetPart.Parent then return false end
+        if not localPart or not localPart.Parent then return false end
+        local success = pcall(function()
+            firetouchinterest(targetPart, localPart, 0)
+            task.wait(0.01)
+            firetouchinterest(targetPart, localPart, 1)
+        end)
+        return success
+    end
+
+    if bool then
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.5) do
+                if not getgenv().autoWinBrawl then break end
+                pcall(function()
+                    if game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
+                        game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
+                        game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
+                    end
+                end)
+            end
+        end)
+
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.5) do
+                if not getgenv().autoWinBrawl then break end
+                equipPunch()
+            end
+        end)
+
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.1) do
+                if not getgenv().autoWinBrawl then break end
+                if isLocalPlayerReady() and game.ReplicatedStorage.brawlInProgress.Value then
+                    local player = game.Players.LocalPlayer
+                    pcall(function() player.muscleEvent:FireServer("punch", "rightHand") end)
+                    pcall(function() player.muscleEvent:FireServer("punch", "leftHand") end)
+                end
+            end
+        end)
+
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.05) do
+                if not getgenv().autoWinBrawl then break end
+                if isLocalPlayerReady() and game.ReplicatedStorage.brawlInProgress.Value then
+                    local character = game.Players.LocalPlayer.Character
+                    local leftHand = character:FindFirstChild("LeftHand")
+                    local rightHand = character:FindFirstChild("RightHand")
+                    for _, player in pairs(Players:GetPlayers()) do
+                        if not getgenv().autoWinBrawl then break end
+                        pcall(function()
+                            if isValidTarget(player) then
+                                local targetRoot = player.Character.HumanoidRootPart
+                                if leftHand then
+                                    safeTouchInterest(targetRoot, leftHand)
+                                end
+                                if rightHand then
+                                    safeTouchInterest(targetRoot, rightHand)
+                                end
+                            end
+                        end)
+                        task.wait(0.01)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+mainTab.newToggle("Auto Join Brawls", function(bool)
+    getgenv().autoJoinBrawl = bool
+    if bool then
+        task.spawn(function()
+            while getgenv().autoJoinBrawl and task.wait(0.5) do
+                if not getgenv().autoJoinBrawl then break end
+                pcall(function()
+                    if game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
+                        game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
+                        game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
+                    end
+                end)
+            end
+        end)
+    end
+end)
