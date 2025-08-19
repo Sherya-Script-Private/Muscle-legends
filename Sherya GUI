@@ -34,9 +34,9 @@ local function safeCall(func, ...)
 end
 
 -- UI Window
-local window = library:AddWindow("Sherya Script", {
+local window = library:AddWindow("Sherya Script | Galaxy Hub", {
     main_color = Color3.fromRGB(75, 0, 130),
-    min_size = Vector2.new(600, 650),
+    min_size = Vector2.new(600, 660),
     can_resize = true,
 })
 
@@ -48,6 +48,7 @@ local Stats = window:AddTab("Stats")
 local Calculator = window:AddTab("Calculator")
 local Killing = window:AddTab("Killer")
 local DamageTab = window:AddTab("Damage")
+local killingv2 = window:AddTab("Killer v2")
 local Teleport = window:AddTab("Teleport")
 local creditsTab = window:AddTab("Credits")
 
@@ -3825,6 +3826,69 @@ DurabilityFolder:AddButton("Calcular Durabilidad", function()
 end)
 
 -- ============================================================================
+-- Killing v2
+-- ============================================================================
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local targetName = "" -- Nombre del jugador que pondrás en el textbox
+local autoTP = false -- Estado del switch
+
+-- TextBox para escribir el nombre del jugador
+killingv2:CreateTextbox("Nombre del Jugador", function(value)
+    targetName = value
+end)
+
+-- Switch para activar/desactivar el auto TP
+killingv2:CreateSwitch("Auto Teleport", false, function(state)
+    autoTP = state
+    if autoTP then
+        task.spawn(function()
+            while autoTP do
+                -- Buscar jugador
+                local target = Players:FindFirstChild(targetName)
+                if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                    -- Teletransportar a su posición
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0) -- te pone encima
+                    end
+                end
+                task.wait(0.3) -- intervalo entre tps
+            end
+        end)
+    end
+end)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local autoGS = false -- estado del switch
+
+-- Switch para activar/desactivar auto Ground Slam
+killingv2:CreateSwitch("Auto Ground Slam", false, function(state)
+    autoGS = state
+    if autoGS then
+        task.spawn(function()
+            while autoGS do
+                -- Buscar herramienta Ground Slam
+                local tool = LocalPlayer.Backpack:FindFirstChild("Ground Slam") or LocalPlayer.Character:FindFirstChild("Ground Slam")
+                if tool then
+                    -- Equipar si está en la mochila
+                    if tool.Parent == LocalPlayer.Backpack then
+                        tool.Parent = LocalPlayer.Character
+                    end
+                    -- Simular click/uso de la herramienta
+                    pcall(function()
+                        tool:Activate()
+                    end)
+                end
+                task.wait(0.2) -- velocidad de spam
+            end
+        end)
+    end
+end)
+
+-- ============================================================================
 -- TELEPORT TAB
 -- ============================================================================
 
@@ -3967,3 +4031,4 @@ game.Players.PlayerAdded:Connect(function(player)
         end
     end
 end)
+
