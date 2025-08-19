@@ -47,8 +47,8 @@ local pets = window:AddTab("Pets")
 local Stats = window:AddTab("Stats")
 local Calculator = window:AddTab("Calculator")
 local Killing = window:AddTab("Killer")
-local DamageTab = window:AddTab("Dmg")
-local killingv2 = window:AddTab("KillerV2")
+local DamageTab = window:AddTab("Damage")
+local killingv2 = window:AddTab("Killer v2")
 local Teleport = window:AddTab("Teleport")
 local creditsTab = window:AddTab("Credits")
 
@@ -3844,7 +3844,7 @@ local gsConnection = nil
 -- ============================================================================
 
 -- Función para validar si un jugador existe y está disponible
-local function isValidTarget(playerName)
+function isValidTarget(playerName)
     if not playerName or playerName == "" then
         return false
     end
@@ -3854,12 +3854,12 @@ local function isValidTarget(playerName)
 end
 
 -- Función para obtener el HumanoidRootPart del jugador local
-local function getLocalHRP()
+function getLocalHRP()
     return LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 end
 
 -- Función de teleporte segura
-local function safeTeleport(targetPlayer)
+function safeTeleport(targetPlayer)
     local localHRP = getLocalHRP()
     if not localHRP then
         return false
@@ -3882,7 +3882,7 @@ end
 -- Sistema de Auto Teleport
 -- ============================================================================
 
-local function startAutoTeleport()
+function startAutoTeleport()
     if tpConnection then
         tpConnection:Disconnect()
     end
@@ -3900,7 +3900,7 @@ local function startAutoTeleport()
     end)
 end
 
-local function stopAutoTeleport()
+function stopAutoTeleport()
     if tpConnection then
         tpConnection:Disconnect()
         tpConnection = nil
@@ -3936,10 +3936,16 @@ local function equipTool(tool)
     end
 end
 
-local function activateTool(tool)
+function activateTool(tool)
     if tool and tool.Parent == LocalPlayer.Character then
         pcall(function()
-            tool:Activate()
+            -- Método más directo para Ground Slam
+            if tool:FindFirstChild("Handle") and tool.Handle:FindFirstChild("ClickDetector") then
+                fireclickdetector(tool.Handle.ClickDetector)
+            else
+                -- Activar usando el evento Activated
+                tool.Activated:Fire()
+            end
         end)
     end
 end
