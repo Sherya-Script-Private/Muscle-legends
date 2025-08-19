@@ -14,9 +14,15 @@ local window = DrRayLibrary:Load("Sherya Script", "Default")
 -- Tabs
 local mainTab = DrRayLibrary.newTab("Main", "ImageIdHere")
 local miscTab = DrRayLibrary.newTab("Misc", "ImageIdHere")
-local killerTab = DrRayLibrary.newTab("Kill", "ImageIdHere")
+local killerTab = DrRayLibrary.newTab("Killer", "ImageIdHere")
 local playersTab = DrRayLibrary.newTab("Teleport", "ImageIdHere")
 local creditsTab = DrRayLibrary.newTab("Credits", "ImageIdHere")
+
+
+mainTab.newLabel("Welcome to Galaxy Hub!")
+mainTab.newLabel("This script is made by Sherya.")
+mainTab.newLabel("")
+mainTab.newLabel("Auto Brawls")
 
 -- God Mode Toggle
 local godModeToggle = false
@@ -185,8 +191,7 @@ mainTab.newToggle("Auto Join Brawls", "Automatically joins brawls", false, funct
     end
 end)
 
--- Jungle Gym Folder
-local jungleGymFolder = mainTab:AddFolder("  Jungle Gym")
+mainTab.newLabel("Jungle Gym")
 
 -- Helper functions for Jungle Gym
 local function pressE()
@@ -213,7 +218,7 @@ local function teleportAndStart(machineName, position)
 end
 
 -- Jungle Gym Bench Press
-jungleGymFolder:AddSwitch("Jungle Bench Press", function(bool)
+mainTab.newToggle("Jungle Bench Press", "Automatically Bench Press", false, function(bool)
     if getgenv().working and not bool then
         getgenv().working = false
         return
@@ -226,7 +231,7 @@ jungleGymFolder:AddSwitch("Jungle Bench Press", function(bool)
 end)
 
 -- Jungle Gym Squat
-jungleGymFolder:AddSwitch("Jungle Squat", function(bool)
+mainTab.newToggle("Jungle Squat", "Automatically Squat", false, function(bool)
     if getgenv().working and not bool then
         getgenv().working = false
         return
@@ -239,7 +244,7 @@ jungleGymFolder:AddSwitch("Jungle Squat", function(bool)
 end)
 
 -- Jungle Gym Pull Up
-jungleGymFolder:AddSwitch("Jungle Pull Ups", function(bool)
+mainTab.newToggle("Jungle Pull Up", "Automatically Pull Up", false, function(bool)
     if getgenv().working and not bool then
         getgenv().working = false
         return
@@ -252,7 +257,7 @@ jungleGymFolder:AddSwitch("Jungle Pull Ups", function(bool)
 end)
 
 -- Jungle Gym Boulder
-jungleGymFolder:AddSwitch("Jungle Boulder", function(bool)
+mainTab.newToggle("Jungle Boulder", "Automatically Boulder", false, function(bool)
     if getgenv().working and not bool then
         getgenv().working = false
         return
