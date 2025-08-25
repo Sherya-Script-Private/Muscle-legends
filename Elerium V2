@@ -473,7 +473,7 @@ autoSnackFolder:AddSwitch("Auto Eat Egg 30 Minuts", function(state)
     autoEatEnabled = state
 end)
 
-local opThingsFolder = mainTab:AddFolder("OP Things/Farms")
+local opThingsFolder = mainTab:AddFolder("  OP Things/Farms")
 
 local switch = opThingsFolder:AddSwitch("Lock Position", function(Value)
     if Value then
@@ -509,6 +509,17 @@ opThingsFolder:AddSwitch("Anti Knockback", function(Value)
         local existingVelocity = rootPart:FindFirstChild("BodyVelocity")
         if existingVelocity and existingVelocity.MaxForce == Vector3.new(100000, 0, 100000) then
             existingVelocity:Destroy()
+        end
+    end
+end)
+
+opThingsFolder:AddSwitch("Delete All Frames", function(state)
+    local rSto = game:GetService("ReplicatedStorage")
+    for _, obj in pairs(rSto:GetChildren()) do
+        if obj.Name:match("Frame$") and obj:IsA("GuiObject") then
+            if state then
+                obj:Destroy()
+            end
         end
     end
 end)
@@ -1692,7 +1703,7 @@ local sessionStartBrawls = 0
 local hasStartedTracking = false
 
 -- Crear una carpeta en farmPlusTab para estadísticas
-local statsFolder = Stats:AddFolder("Stats")
+local statsFolder = Stats:AddFolder("  Stats")
 
 -- Crear etiquetas para las estadísticas solicitadas
 statsFolder:AddLabel("Strength")
@@ -2287,40 +2298,6 @@ print("📊 Calculator cargado - Iniciará automáticamente en 2 segundos")
 
 local titleLabel = Killer:AddLabel("Auto Kill ")
 
-local dropdown = Killer:AddDropdown("Select Pet", function(text)
-    safeCall(function()
-        local petsFolder = game.Players.LocalPlayer.petsFolder
-        for _, folder in pairs(petsFolder:GetChildren()) do
-            if folder:IsA("Folder") then
-                for _, pet in pairs(folder:GetChildren()) do
-                    game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("unequipPet", pet)
-                end
-            end
-        end
-        task.wait(0.2)
-
-        local petName = text
-        local petsToEquip = {}
-
-        for _, pet in pairs(game.Players.LocalPlayer.petsFolder.Unique:GetChildren()) do
-            if pet.Name == petName then
-                table.insert(petsToEquip, pet)
-            end
-        end
-
-        local maxPets = 8
-        local equippedCount = math.min(#petsToEquip, maxPets)
-
-        for i = 1, equippedCount do
-            game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("equipPet", petsToEquip[i])
-            task.wait(0.1)
-        end
-    end)
-end)
-
-dropdown:Add("Wild Wizard")
-dropdown:Add("Mighty Monster")
-
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local playerWhitelist = {}
@@ -2894,65 +2871,6 @@ Killer:AddSwitch("Punch Death", function(value)
     end
 end)
 
--- Death Ring and Kill Aura
-Killer:AddLabel("---Kill Aura---")
-
-local function findPlayerByName(name)
-    if not name or name == "" then return nil end
-    name = name:lower()
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player.Name:lower():find(name, 1, true) or player.DisplayName:lower():find(name, 1, true) then
-            return player
-        end
-    end
-    return nil
-end
-
-Killer:AddTextBox("Range (1-140)", function(text)
-    local range = tonumber(text)
-    if range then
-        range = math.clamp(range, 1, 140)
-        _G.deathRingRange = range
-    end
-end)
-
-Killer:AddSwitch("Death Ring", function(bool)
-    _G.deathRingEnabled = bool
-
-    if bool then
-        if not _G.deathRingConnection then
-            _G.deathRingConnection = RunService.Heartbeat:Connect(function()
-                if not _G.deathRingEnabled then return end
-
-                local character = checkCharacter()
-                if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-
-                local myPosition = character.HumanoidRootPart.Position
-
-                for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-                    if player == game.Players.LocalPlayer or isWhitelisted(player) then
-                        continue                        
-                    end
-
-                    if isPlayerAlive(player) then
-                        local playerPosition = player.Character.HumanoidRootPart.Position
-                        local distance = (myPosition - playerPosition).Magnitude
-
-                        if distance <= _G.deathRingRange then
-                            killPlayer(player)
-                        end
-                    end
-                end
-            end)
-        end
-    else
-        if _G.deathRingConnection then
-            _G.deathRingConnection:Disconnect()
-            _G.deathRingConnection = nil
-        end
-    end
-end)
-
 local button = Killer:AddButton("Remove Punch Anim", function()
     local blockedAnimations = {
         ["rbxassetid://3638729053"] = true,
@@ -3260,7 +3178,7 @@ local showKillsButton = Killer:AddButton("Kill Counter UI", function()
 			local killsFrame = Instance.new("Frame")
 			killsFrame.Size = UDim2.new(0, 180, 0, 55)
 			killsFrame.Position = UDim2.new(0.5, -90, 0, 60)
-			killsFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 139)
+			killsFrame.BackgroundColor3 = Color3.fromRGB(75, 0, 130)
 			killsFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 			killsFrame.Active = true
 			killsFrame.Draggable = true
@@ -3270,7 +3188,7 @@ local showKillsButton = Killer:AddButton("Kill Counter UI", function()
 			titleLabel.Size = UDim2.new(1, 0, 0, 20)
 			titleLabel.Position = UDim2.new(0, 0, 0, 0)
 			titleLabel.BackgroundTransparency = 1
-			titleLabel.Text = "Project V1"
+			titleLabel.Text = "Sherya Script"
 			titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 			titleLabel.Font = Enum.Font.SourceSansBold
 			titleLabel.TextScaled = true
@@ -3666,27 +3584,6 @@ local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(
     else
         unequipAllPets()
     end
-end)
-
-PackFarmFolder:AddSwitch("Delete All Frames", function(state)
-    local rSto = game:GetService("ReplicatedStorage")
-    for _, obj in pairs(rSto:GetChildren()) do
-        if obj.Name:match("Frame$") and obj:IsA("GuiObject") then
-            if state then
-                obj:Destroy()
-            end
-        end
-    end
-end)
-
--- Botón para Swift Samurai
-PackFarmFolder:AddButton("Equip Swift Samurai (8x)", function()
-    equipSpecificPets("Swift Samurai", 8)
-end)
-
--- Botón para Tribal Overlord
-PackFarmFolder:AddButton("Equip Tribal Overlord (8x)", function()
-    equipSpecificPets("Tribal Overlord", 8)
 end)
 
 local statsFolder = Farm:AddFolder("Rebirth Statistics")
