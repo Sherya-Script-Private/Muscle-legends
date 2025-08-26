@@ -7,22 +7,30 @@ local window = library:AddWindow("Sherya Script | Galaxy Hub", {
 
 local Farm = window:AddTab("Farm")
 local Opti = window:AddTab("Optimizacion")
-local FarmTab = window:AddTab("Farm")
+local FarmTab = window:AddTab("Extra")
+local creditsTab = window:AddTab("Credits")
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
+-- Variables globales corregidas
 local startTime = 0
 local rebirthStartTime = 0
 local startRebirths = 0
 local hasStarted = false
 local targetRebirth = math.huge
+local autoEatEnabled = false
 
 local packFarmTarget = false
 local packFarmInfinite = false
 local fastStrength = false
+
+-- Declarar variables para los toggles
+local targetPackToggle = nil
+local infinitePackToggle = nil
+local fastStrengthToggle = nil
 
 local function formatNumber(number)
     if number >= 1e15 then return string.format("%.2fQ", number/1e15)
@@ -65,6 +73,8 @@ local packRebirthValues = {
 
 local function unequipAllPets()
     local petsFolder = player.petsFolder
+    if not petsFolder then return end
+    
     for _, folder in pairs(petsFolder:GetChildren()) do
         if folder:IsA("Folder") then
             for _, pet in pairs(folder:GetChildren()) do
@@ -80,9 +90,11 @@ local function equipSpecificPacks(packName, count)
     task.wait(0.2)
 
     local packs = {}
-    for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
-        if pet.Name == packName then
-            table.insert(packs, pet)
+    if player.petsFolder and player.petsFolder:FindFirstChild("Unique") then
+        for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
+            if pet.Name == packName then
+                table.insert(packs, pet)
+            end
         end
     end
 
@@ -138,44 +150,6 @@ local function lockPosition(lock)
     end
 end
 
-local function calculateOptimalPacks(currentRebirths, targetRebirths)
-    local rebirthsNeeded = targetRebirths - currentRebirths
-
-    if rebirthsNeeded <= 0 then
-        return 0
-    end
-
-    if rebirthsNeeded == 1 then
-        return 0
-    end
-
-    for packCount = 1, 8 do
-        if packRebirthValues[packCount] == rebirthsNeeded then
-            return packCount
-        end
-    end
-
-    for packCount = 8, 1, -1 do
-        if packRebirthValues[packCount] < rebirthsNeeded then
-            local remaining = rebirthsNeeded - packRebirthValues[packCount]
-
-            if remaining == 1 then
-                return packCount
-            end
-
-            for secondPackCount = 8, 0, -1 do
-                if packRebirthValues[secondPackCount] == remaining then
-                    return packCount
-                end
-            end
-
-            return packCount
-        end
-    end
-
-    return 0
-end
-
 Farm:AddTextBox("Target Rebirth Amount", function(text)
     local num = tonumber(text)
     if num then
@@ -185,16 +159,16 @@ Farm:AddTextBox("Target Rebirth Amount", function(text)
     end
 end)
 
-local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
+targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
     packFarmTarget = bool
 
     if bool then
-        if packFarmInfinite then
+        if packFarmInfinite and infinitePackToggle then
             packFarmInfinite = false
             infinitePackToggle:Set(false)
         end
 
-        if fastStrength then
+        if fastStrength and fastStrengthToggle then
             fastStrength = false
             fastStrengthToggle:Set(false)
         end
@@ -220,7 +194,6 @@ local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
                     end
 
                     local rebirthsNeeded = targetRebirth - currentRebirths
-
                     local packCount = 0
 
                     if rebirthsNeeded == 1 then
@@ -276,16 +249,16 @@ local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
     end
 end)
 
-local infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
+infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
     packFarmInfinite = bool
 
     if bool then
-        if packFarmTarget then
+        if packFarmTarget and targetPackToggle then
             packFarmTarget = false
             targetPackToggle:Set(false)
         end
 
-        if fastStrength then
+        if fastStrength and fastStrengthToggle then
             fastStrength = false
             fastStrengthToggle:Set(false)
         end
@@ -340,16 +313,16 @@ local infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
     end
 end)
 
-local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
+fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
     fastStrength = bool
 
     if bool then
-        if packFarmTarget then
+        if packFarmTarget and targetPackToggle then
             packFarmTarget = false
             targetPackToggle:Set(false)
         end
 
-        if packFarmInfinite then
+        if packFarmInfinite and infinitePackToggle then
             packFarmInfinite = false
             infinitePackToggle:Set(false)
         end
@@ -395,6 +368,7 @@ settingsFolder:AddButton("Reset RunTime", function()
     end
 end)
 
+-- Corregir el spawn de estadísticas
 task.spawn(function()
     startTime = os.time()
     rebirthStartTime = os.time()
@@ -425,102 +399,97 @@ task.spawn(function()
                 rebirthGainsLabel.Text = string.format("Rebirth Gains: %s", 
                     formatNumberWithCommas(gainedRebirths))
 
-                    if rebirthElapsedTime > 0 then
-                        local perMinute = gainedRebirths / (rebirthElapsedTime / 60)
-                        local perHour = perMinute * 60
+                if rebirthElapsedTime > 0 then
+                    local perMinute = gainedRebirths / (rebirthElapsedTime / 60)
+                    local perHour = perMinute * 60
 
-                        perMinuteLabel.Text = string.format("Per Minute: %s", 
-                            formatNumberWithCommas(perMinute))
-                        perHourLabel.Text = string.format("Per Hour: %s", 
-                            formatNumberWithCommas(perHour))
-                        hours12Label.Text = string.format("12 Hours: %s", 
-                            formatNumberWithCommas(perHour * 12))
-                        hours24Label.Text = string.format("24 Hours: %s", 
-                            formatNumberWithCommas(perHour * 24))
+                    perMinuteLabel.Text = string.format("Per Minute: %s", 
+                        formatNumberWithCommas(perMinute))
+                    perHourLabel.Text = string.format("Per Hour: %s", 
+                        formatNumberWithCommas(perHour))
+                    hours12Label.Text = string.format("12 Hours: %s", 
+                        formatNumberWithCommas(perHour * 12))
+                    hours24Label.Text = string.format("24 Hours: %s", 
+                        formatNumberWithCommas(perHour * 24))
 
-                        if targetRebirth ~= math.huge then
-                            local rebirthsNeeded = targetRebirth - currentRebirths
-                            rebirthsNeededLabel.Text = string.format("Rebirths Needed: %s",
-                                formatNumberWithCommas(rebirthsNeeded))
+                    if targetRebirth ~= math.huge then
+                        local rebirthsNeeded = targetRebirth - currentRebirths
+                        rebirthsNeededLabel.Text = string.format("Rebirths Needed: %s",
+                            formatNumberWithCommas(rebirthsNeeded))
 
-                            if perHour > 0 and rebirthsNeeded > 0 then
-                                local hoursToTarget = rebirthsNeeded / perHour
-                                local timeToTarget = formatTime(hoursToTarget * 3600)
-                                timeToTargetLabel.Text = string.format("Time To Target: %s", timeToTarget)
+                        if perHour > 0 and rebirthsNeeded > 0 then
+                            local hoursToTarget = rebirthsNeeded / perHour
+                            local timeToTarget = formatTime(hoursToTarget * 3600)
+                            timeToTargetLabel.Text = string.format("Time To Target: %s", timeToTarget)
 
-                                local completionTimestamp = os.time() + (hoursToTarget * 3600)
-                                local completionDate = os.date("%m/%d/%Y %H:%M", completionTimestamp)
-                                estimatedCompletionLabel.Text = string.format("Estimated Completion: %s", completionDate)
-                            elseif rebirthsNeeded <= 0 then
-                                timeToTargetLabel.Text = "Time To Target: Reached!"
-                                estimatedCompletionLabel.Text = "Estimated Completion: Completed!"
-                            else
-                                timeToTargetLabel.Text = "Time To Target: N/A"
-                                estimatedCompletionLabel.Text = "Estimated Completion: N/A"
-                            end
+                            local completionTimestamp = os.time() + (hoursToTarget * 3600)
+                            local completionDate = os.date("%m/%d/%Y %H:%M", completionTimestamp)
+                            estimatedCompletionLabel.Text = string.format("Estimated Completion: %s", completionDate)
+                        elseif rebirthsNeeded <= 0 then
+                            timeToTargetLabel.Text = "Time To Target: Reached!"
+                            estimatedCompletionLabel.Text = "Estimated Completion: Completed!"
                         else
-                            rebirthsNeededLabel.Text = "Rebirths Needed: N/A"
                             timeToTargetLabel.Text = "Time To Target: N/A"
                             estimatedCompletionLabel.Text = "Estimated Completion: N/A"
                         end
+                    else
+                        rebirthsNeededLabel.Text = "Rebirths Needed: N/A"
+                        timeToTargetLabel.Text = "Time To Target: N/A"
+                        estimatedCompletionLabel.Text = "Estimated Completion: N/A"
                     end
-
-                    local timeString = formatTime(elapsedTime)
-                    runTimeLabel.Text = string.format("RunTime: %s", timeString)
-                else
-                    rebirthGainsLabel.Text = "Rebirth Gains: 0"
-                    perMinuteLabel.Text = "Per Minute: 0"
-                    perHourLabel.Text = "Per Hour: 0"
-                    hours12Label.Text = "12 Hours: 0"
-                    hours24Label.Text = "24 Hours: 0"
-
-                    runTimeLabel.Text = "RunTime: 00:00:00"
-
-                    rebirthsNeededLabel.Text = "Rebirths Needed: N/A"
-                    timeToTargetLabel.Text = "Time To Target: N/A"
-                    estimatedCompletionLabel.Text = "Estimated Completion: N/A"
                 end
+
+                local timeString = formatTime(elapsedTime)
+                runTimeLabel.Text = string.format("RunTime: %s", timeString)
             else
-                currentRebirthsLabel.Text = "Current Rebirths: Waiting..."
+                rebirthGainsLabel.Text = "Rebirth Gains: 0"
+                perMinuteLabel.Text = "Per Minute: 0"
+                perHourLabel.Text = "Per Hour: 0"
+                hours12Label.Text = "12 Hours: 0"
+                hours24Label.Text = "24 Hours: 0"
+                runTimeLabel.Text = "RunTime: 00:00:00"
+                rebirthsNeededLabel.Text = "Rebirths Needed: N/A"
+                timeToTargetLabel.Text = "Time To Target: N/A"
+                estimatedCompletionLabel.Text = "Estimated Completion: N/A"
             end
-
-            task.wait(1)
-        end
-    end)
-
-    local function checkForRebirthStart()
-        if not player.leaderstats or not player.leaderstats:FindFirstChild("Rebirths") then
-            repeat
-                task.wait(0.5)
-            until player.leaderstats and player.leaderstats:FindFirstChild("Rebirths")
+        else
+            currentRebirthsLabel.Text = "Current Rebirths: Waiting..."
         end
 
-        local initialRebirths = player.leaderstats.Rebirths.Value
+        task.wait(1)
+    end
+end)
 
-        player.leaderstats.Rebirths:GetPropertyChangedSignal("Value"):Connect(function()
-            local newRebirths = player.leaderstats.Rebirths.Value
-            if not hasStarted and newRebirths > initialRebirths then
-                startTime = os.time()
-                rebirthStartTime = os.time()
-                startRebirths = initialRebirths
-                hasStarted = true
-            end
-        end)
+local function checkForRebirthStart()
+    if not player.leaderstats or not player.leaderstats:FindFirstChild("Rebirths") then
+        repeat
+            task.wait(0.5)
+        until player.leaderstats and player.leaderstats:FindFirstChild("Rebirths")
     end
 
-    task.spawn(checkForRebirthStart)
+    local initialRebirths = player.leaderstats.Rebirths.Value
 
+    player.leaderstats.Rebirths:GetPropertyChangedSignal("Value"):Connect(function()
+        local newRebirths = player.leaderstats.Rebirths.Value
+        if not hasStarted and newRebirths > initialRebirths then
+            startTime = os.time()
+            rebirthStartTime = os.time()
+            startRebirths = initialRebirths
+            hasStarted = true
+        end
+    end)
+end
 
+task.spawn(checkForRebirthStart)
+
+-- SECCIÓN ANTI-LAG OPTIMIZADA
 -- Variables globales para el Anti-Lag
-local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local RunService = game:GetService("RunService")
 
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Character = player.Character or player.CharacterAdded:Wait()
 
 local antiLagEnabled = false
 local fpsMonitorConnection = nil
@@ -541,23 +510,27 @@ local OPTIMIZATION_CONFIG = {
 
 -- Función para notificaciones
 local function showNotification(title, text, duration)
-    StarterGui:SetCore("SendNotification", {
-        Title = title;
-        Text = text;
-        Duration = duration or 5;
-    })
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title;
+            Text = text;
+            Duration = duration or 5;
+        })
+    end)
 end
 
 -- Función para eliminar objetos por clase
 local function removeObjectsByClass(parent, className)
-    for _, obj in pairs(parent:GetChildren()) do
-        if obj:IsA(className) then
-            obj:Destroy()
+    pcall(function()
+        for _, obj in pairs(parent:GetChildren()) do
+            if obj:IsA(className) then
+                obj:Destroy()
+            end
+            if #obj:GetChildren() > 0 then
+                removeObjectsByClass(obj, className)
+            end
         end
-        if #obj:GetChildren() > 0 then
-            removeObjectsByClass(obj, className)
-        end
-    end
+    end)
 end
 
 -- Función principal de limpieza
@@ -567,45 +540,47 @@ local function performCleanup()
     
     local function protectPlayer(obj)
         return obj == Character or obj:IsDescendantOf(Character) or 
-               obj == LocalPlayer or obj:IsDescendantOf(LocalPlayer)
+               obj == player or obj:IsDescendantOf(player)
     end
     
-    -- Eliminar partículas y efectos
-    if OPTIMIZATION_CONFIG.removeParticles then
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            if not protectPlayer(obj) then
-                if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or 
-                   obj:IsA("Smoke") or obj:IsA("Sparkles") or
-                   obj:IsA("Explosion") or obj:IsA("Trail") or
-                   obj:IsA("Beam") then
-                    obj:Destroy()
-                    objectsRemoved = objectsRemoved + 1
+    pcall(function()
+        -- Eliminar partículas y efectos
+        if OPTIMIZATION_CONFIG.removeParticles then
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if not protectPlayer(obj) then
+                    if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or 
+                       obj:IsA("Smoke") or obj:IsA("Sparkles") or
+                       obj:IsA("Explosion") or obj:IsA("Trail") or
+                       obj:IsA("Beam") then
+                        obj:Destroy()
+                        objectsRemoved = objectsRemoved + 1
+                    end
                 end
             end
         end
-    end
-    
-    -- Eliminar decals y texturas
-    if OPTIMIZATION_CONFIG.removeDecals then
-        removeObjectsByClass(Workspace, "Decal")
-        removeObjectsByClass(Workspace, "Texture")
-        removeObjectsByClass(Workspace, "SurfaceGui")
-        objectsRemoved = objectsRemoved + 30
-    end
-    
-    -- Eliminar sonidos
-    if OPTIMIZATION_CONFIG.removeSounds then
-        removeObjectsByClass(Workspace, "Sound")
-        objectsRemoved = objectsRemoved + 15
-    end
-    
-    -- Optimizar materiales
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and not protectPlayer(obj) then
-            obj.Material = Enum.Material.Plastic
-            obj.Reflectance = 0
+        
+        -- Eliminar decals y texturas
+        if OPTIMIZATION_CONFIG.removeDecals then
+            removeObjectsByClass(Workspace, "Decal")
+            removeObjectsByClass(Workspace, "Texture")
+            removeObjectsByClass(Workspace, "SurfaceGui")
+            objectsRemoved = objectsRemoved + 30
         end
-    end
+        
+        -- Eliminar sonidos
+        if OPTIMIZATION_CONFIG.removeSounds then
+            removeObjectsByClass(Workspace, "Sound")
+            objectsRemoved = objectsRemoved + 15
+        end
+        
+        -- Optimizar materiales
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not protectPlayer(obj) then
+                obj.Material = Enum.Material.Plastic
+                obj.Reflectance = 0
+            end
+        end
+    end)
     
     local endTime = tick()
     showNotification("Anti-Lag OP", 
@@ -614,18 +589,20 @@ end
 
 -- Función para optimizar gráficos
 local function optimizeGraphics()
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 100
-    Lighting.Technology = Enum.Technology.Legacy
-    
-    for _, effect in pairs(Lighting:GetChildren()) do
-        if effect:IsA("PostEffect") then
-            effect:Destroy()
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 100
+        Lighting.Technology = Enum.Technology.Legacy
+        
+        for _, effect in pairs(Lighting:GetChildren()) do
+            if effect:IsA("PostEffect") then
+                effect:Destroy()
+            end
         end
-    end
-    
-    settings().Rendering.QualityLevel = 1
-    settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04
+        
+        settings().Rendering.QualityLevel = 1
+        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04
+    end)
 end
 
 -- Función de monitoreo FPS
@@ -664,61 +641,53 @@ local function stopFPSMonitor()
     end
 end
 
--- BOTONES EN LA TAB
+-- BOTONES EN LA TAB OPTIMIZACIÓN
 
 -- Botón principal Anti-Lag
-Opti:AddToggle({
-    Name = "🚀 Anti-Lag OP",
-    Default = false,
-    Callback = function(Value)
-        antiLagEnabled = Value
+Opti:AddSwitch("🚀 Anti-Lag OP", function(Value)
+    antiLagEnabled = Value
+    
+    if Value then
+        -- Activar Anti-Lag
+        showNotification("Anti-Lag OP", "🟢 Activado - Optimizando juego...", 3)
         
-        if Value then
-            -- Activar Anti-Lag
-            showNotification("Anti-Lag OP", "🟢 Activado - Optimizando juego...", 3)
+        -- Ejecutar optimizaciones iniciales
+        spawn(function()
+            optimizeGraphics()
+            wait(0.5)
+            performCleanup()
+            wait(0.5)
+            startFPSMonitor()
             
-            -- Ejecutar optimizaciones iniciales
-            spawn(function()
-                optimizeGraphics()
-                wait(0.5)
-                performCleanup()
-                wait(0.5)
-                startFPSMonitor()
-                
-                -- Auto-limpieza cada 45 segundos
-                autoCleanConnection = task.spawn(function()
-                    while antiLagEnabled do
-                        wait(45)
-                        if antiLagEnabled then
-                            performCleanup()
-                        end
+            -- Auto-limpieza cada 45 segundos
+            autoCleanConnection = task.spawn(function()
+                while antiLagEnabled do
+                    wait(45)
+                    if antiLagEnabled then
+                        performCleanup()
                     end
-                end)
+                end
             end)
-        else
-            -- Desactivar Anti-Lag
-            stopFPSMonitor()
-            showNotification("Anti-Lag OP", "🔴 Desactivado", 2)
-        end
+        end)
+    else
+        -- Desactivar Anti-Lag
+        stopFPSMonitor()
+        showNotification("Anti-Lag OP", "🔴 Desactivado", 2)
     end
-})
+end)
 
 -- Botón de limpieza manual
-Opti:AddButton({
-    Name = "🗑️ Limpieza Manual",
-    Callback = function()
-        showNotification("Limpieza Manual", "Ejecutando limpieza...", 2)
-        performCleanup()
-    end
-})
+Opti:AddButton("🗑️ Limpieza Manual", function()
+    showNotification("Limpieza Manual", "Ejecutando limpieza...", 2)
+    performCleanup()
+end)
 
 -- Botón modo extremo
-Opti:AddButton({
-    Name = "⚡ Modo Extremo",
-    Callback = function()
-        showNotification("Modo Extremo", "⚠️ Eliminando TODO excepto jugador...", 3)
-        
-        spawn(function()
+Opti:AddButton("⚡ Modo Extremo", function()
+    showNotification("Modo Extremo", "⚠️ Eliminando TODO excepto jugador...", 3)
+    
+    spawn(function()
+        pcall(function()
             for _, obj in pairs(Workspace:GetChildren()) do
                 if obj ~= Character and not obj:IsA("Camera") and 
                    obj.Name ~= "Terrain" and obj.Name ~= "CurrentCamera" then
@@ -735,48 +704,31 @@ Opti:AddButton({
                     obj:Destroy()
                 end
             end
-            
-            showNotification("Modo Extremo", "✅ Limpieza extrema completada!", 4)
         end)
-    end
-})
+        
+        showNotification("Modo Extremo", "✅ Limpieza extrema completada!", 4)
+    end)
+end)
 
 -- Botón optimizar gráficos
-Opti:AddButton({
-    Name = "🎨 Optimizar Gráficos",
-    Callback = function()
-        optimizeGraphics()
-        showNotification("Gráficos", "📱 Optimizado para móvil!", 3)
-    end
-})
+Opti:AddButton("🎨 Optimizar Gráficos", function()
+    optimizeGraphics()
+    showNotification("Gráficos", "📱 Optimizado para móvil!", 3)
+end)
 
--- Toggle para partículas
-Opti:AddToggle({
-    Name = "🎆 Eliminar Partículas",
-    Default = true,
-    Callback = function(Value)
-        OPTIMIZATION_CONFIG.removeParticles = Value
-    end
-})
+-- Toggles de configuración
+Opti:AddSwitch("🎆 Eliminar Partículas", function(Value)
+    OPTIMIZATION_CONFIG.removeParticles = Value
+end)
 
--- Toggle para sonidos
-Opti:AddToggle({
-    Name = "🔊 Eliminar Sonidos",
-    Default = true,
-    Callback = function(Value)
-        OPTIMIZATION_CONFIG.removeSounds = Value
-    end
-})
+Opti:AddSwitch("🔊 Eliminar Sonidos", function(Value)
+    OPTIMIZATION_CONFIG.removeSounds = Value
+end)
 
--- Toggle para texturas
-Opti:AddToggle({
-    Name = "🖼️ Eliminar Texturas",
-    Default = true,
-    Callback = function(Value)
-        OPTIMIZATION_CONFIG.removeDecals = Value
-        OPTIMIZATION_CONFIG.removeTextures = Value
-    end
-})
+Opti:AddSwitch("🖼️ Eliminar Texturas", function(Value)
+    OPTIMIZATION_CONFIG.removeDecals = Value
+    OPTIMIZATION_CONFIG.removeTextures = Value
+end)
 
 -- Información del sistema
 Opti:AddLabel("📊 Estado: Sistema cargado correctamente")
@@ -785,38 +737,39 @@ Opti:AddLabel("💡 Tip: Activa Anti-Lag OP para mejor rendimiento")
 -- Notificación de carga
 showNotification("Tab Optimización", "✅ Anti-Lag OP cargado en la interfaz!", 5)
 
+-- FUNCIONES PARA FARMTAB
 local function eatProteinEgg()
-    local player = game.Players.LocalPlayer
-    local backpack = player:WaitForChild("Backpack")
-    local character = player.Character or player.CharacterAdded:Wait()
+    pcall(function()
+        local backpack = player:WaitForChild("Backpack")
+        local character = player.Character or player.CharacterAdded:Wait()
 
-    local egg = backpack:FindFirstChild("Protein Egg")
-    if egg then
-        egg.Parent = character
-        pcall(function()
+        local egg = backpack:FindFirstChild("Protein Egg")
+        if egg then
+            egg.Parent = character
             egg:Activate()
-        end)
-    end
+        end
+    end)
 end
 
+-- Spawn para auto eat
 task.spawn(function()
     while true do
         if autoEatEnabled then
             eatProteinEgg()
-            task.wait(1800)
+            task.wait(1800) -- 30 minutos
         else
             task.wait(1)
         end
     end
 end)
 
-FarmTab:AddSwitch("Auto Eat Egg 30 Minuts", function(state)
-    FarmTab = state
+-- Switches y botones corregidos para FarmTab
+FarmTab:AddSwitch("Auto Eat Egg 30 Minutes", function(state)
+    autoEatEnabled = state
 end)
 
-local switch = FarmTab:AddSwitch("Lock Position", function(Value)
+FarmTab:AddSwitch("Lock Position", function(Value)
     if Value then
-        
         local currentPos = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
         getgenv().posLock = game:GetService("RunService").Heartbeat:Connect(function()
             if game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -824,7 +777,6 @@ local switch = FarmTab:AddSwitch("Lock Position", function(Value)
             end
         end)
     else
-        
         if getgenv().posLock then
             getgenv().posLock:Disconnect()
             getgenv().posLock = nil
@@ -833,13 +785,15 @@ local switch = FarmTab:AddSwitch("Lock Position", function(Value)
 end)
 
 FarmTab:AddSwitch("Delete All Frames", function(state)
-    local rSto = game:GetService("ReplicatedStorage")
-    for _, obj in pairs(rSto:GetChildren()) do
-        if obj.Name:match("Frame$") and obj:IsA("GuiObject") then
-            if state then
-                obj:Destroy()
+    if state then
+        pcall(function()
+            local rSto = game:GetService("ReplicatedStorage")
+            for _, obj in pairs(rSto:GetChildren()) do
+                if obj.Name:match("Frame$") and obj:IsA("GuiObject") then
+                    obj:Destroy()
+                end
             end
-        end
+        end)
     end
 end)
 
@@ -879,4 +833,23 @@ FarmTab:AddButton("Anti AFK", function()
             VirtualUser:ClickButton2(Vector2.new())
         end
     end)
+end)
+
+creditsTab:AddLabel("╭──────────────────────────╮")
+creditsTab:AddLabel(" Script hecho por Isabella")
+creditsTab:AddLabel("╰──────────────────────────╯")
+creditsTab:AddLabel("")
+creditsTab:AddLabel("User de Roblox: MissSherya")
+creditsTab:AddLabel("Instagram: Sherya_Luck")
+creditsTab:AddLabel("TikTok: Sherya6000")
+creditsTab:AddLabel("Discord: isabella_hrz")
+creditsTab:AddLabel("")
+creditsTab:AddLabel("Thanks por usar el script")
+creditsTab:AddLabel("")
+creditsTab:AddLabel("Recomienda el script para hacer mas actualizaciones")
+creditsTab:AddLabel("Hago peticiones de otros juegos")
+creditsTab:AddLabel("Diviertete amiguito")
+
+creditsTab:AddButton("Servidor Discord", function()
+    setclipboard("https://discord.gg/rnDrhTZZCF")
 end)
