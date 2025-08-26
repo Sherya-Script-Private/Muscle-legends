@@ -644,7 +644,7 @@ end
 -- BOTONES EN LA TAB OPTIMIZACIÓN
 
 -- Botón principal Anti-Lag
-Opti:AddSwitch("🚀 Anti-Lag OP", function(Value)
+Opti:AddSwitch("Anti-Lag OP", function(Value)
     antiLagEnabled = Value
     
     if Value then
@@ -683,8 +683,8 @@ Opti:AddButton("🗑️ Limpieza Manual", function()
 end)
 
 -- Botón modo extremo
-Opti:AddButton("⚡ Modo Extremo", function()
-    showNotification("Modo Extremo", "⚠️ Eliminando TODO excepto jugador...", 3)
+Opti:AddButton(" Modo Extremo", function()
+    showNotification("Modo Extremo", " Eliminando TODO excepto jugador...", 3)
     
     spawn(function()
         pcall(function()
@@ -711,28 +711,28 @@ Opti:AddButton("⚡ Modo Extremo", function()
 end)
 
 -- Botón optimizar gráficos
-Opti:AddButton("🎨 Optimizar Gráficos", function()
+Opti:AddButton("Optimizar Gráficos", function()
     optimizeGraphics()
     showNotification("Gráficos", "📱 Optimizado para móvil!", 3)
 end)
 
 -- Toggles de configuración
-Opti:AddSwitch("🎆 Eliminar Partículas", function(Value)
+Opti:AddSwitch("Eliminar Partículas", function(Value)
     OPTIMIZATION_CONFIG.removeParticles = Value
 end)
 
-Opti:AddSwitch("🔊 Eliminar Sonidos", function(Value)
+Opti:AddSwitch("Eliminar Sonidos", function(Value)
     OPTIMIZATION_CONFIG.removeSounds = Value
 end)
 
-Opti:AddSwitch("🖼️ Eliminar Texturas", function(Value)
+Opti:AddSwitch("Eliminar Texturas", function(Value)
     OPTIMIZATION_CONFIG.removeDecals = Value
     OPTIMIZATION_CONFIG.removeTextures = Value
 end)
 
 -- Información del sistema
-Opti:AddLabel("📊 Estado: Sistema cargado correctamente")
-Opti:AddLabel("💡 Tip: Activa Anti-Lag OP para mejor rendimiento")
+Opti:AddLabel("Estado: Sistema cargado correctamente")
+Opti:AddLabel("Tip: Activa Anti-Lag OP para mejor rendimiento")
 
 -- Notificación de carga
 showNotification("Tab Optimización", "✅ Anti-Lag OP cargado en la interfaz!", 5)
