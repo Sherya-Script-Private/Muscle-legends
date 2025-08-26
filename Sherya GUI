@@ -314,6 +314,8 @@ infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
     end
 end)
 
+Farm:AddLabel("-----Fast Strength-----")
+
 fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
     fastStrength = bool
 
@@ -483,260 +485,155 @@ end
 
 task.spawn(checkForRebirthStart)
 
--- SECCIÓN ANTI-LAG OPTIMIZADA
--- Variables globales para el Anti-Lag
+-- ANTI-LAG OP CORREGIDO
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local StarterGui = game:GetService("StarterGui")
 local RunService = game:GetService("RunService")
 
-local Character = player.Character or player.CharacterAdded:Wait()
+local antiLagActive = false
+local blackScreenGui = nil
 
-local antiLagEnabled = false
-local fpsMonitorConnection = nil
-local autoCleanConnection = nil
-
--- Configuración
-local OPTIMIZATION_CONFIG = {
-    removeParticles = true,
-    removeDecals = true,
-    removeTextures = true,
-    removeSounds = true,
-    removeEffects = true,
-    removeTerrain = true,
-    removeUnusedParts = true,
-    optimizeLighting = true,
-    reduceRenderDistance = true,
-}
-
--- Función para notificaciones
-local function showNotification(title, text, duration)
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {
-            Title = title;
-            Text = text;
-            Duration = duration or 5;
-        })
-    end)
+local function createBlackScreen()
+    -- Crear ScreenGui para pantalla negra
+    blackScreenGui = Instance.new("ScreenGui")
+    blackScreenGui.Name = "AntiLagBlackScreen"
+    blackScreenGui.ResetOnSpawn = false
+    blackScreenGui.IgnoreGuiInset = true
+    
+    local blackFrame = Instance.new("Frame")
+    blackFrame.Name = "BlackFrame"
+    blackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    blackFrame.BorderSizePixel = 0
+    blackFrame.Size = UDim2.new(1, 0, 1, 0)
+    blackFrame.Position = UDim2.new(0, 0, 0, 0)
+    blackFrame.ZIndex = -1000 -- Mantener al fondo para ver la UI
+    blackFrame.Parent = blackScreenGui
+    
+    blackScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    print("Pantalla negra activada")
 end
 
--- Función para eliminar objetos por clase
-local function removeObjectsByClass(parent, className)
+local function removeBlackScreen()
+    if blackScreenGui then
+        blackScreenGui:Destroy()
+        blackScreenGui = nil
+        print("Pantalla negra desactivada")
+    end
+end
+
+local function optimizeEverything()
     pcall(function()
-        for _, obj in pairs(parent:GetChildren()) do
-            if obj:IsA(className) then
+        -- Eliminar todos los efectos visuales del workspace
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or obj:IsA("Smoke") or 
+               obj:IsA("Sparkles") or obj:IsA("Explosion") or obj:IsA("Trail") or 
+               obj:IsA("Beam") or obj:IsA("PointLight") or obj:IsA("SpotLight") or
+               obj:IsA("SurfaceLight") or obj:IsA("Decal") or obj:IsA("Texture") or
+               obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") then
                 obj:Destroy()
             end
-            if #obj:GetChildren() > 0 then
-                removeObjectsByClass(obj, className)
-            end
         end
-    end)
-end
-
--- Función principal de limpieza
-local function performCleanup()
-    local startTime = tick()
-    local objectsRemoved = 0
-    
-    local function protectPlayer(obj)
-        return obj == Character or obj:IsDescendantOf(Character) or 
-               obj == player or obj:IsDescendantOf(player)
-    end
-    
-    pcall(function()
-        -- Eliminar partículas y efectos
-        if OPTIMIZATION_CONFIG.removeParticles then
-            for _, obj in pairs(Workspace:GetDescendants()) do
-                if not protectPlayer(obj) then
-                    if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or 
-                       obj:IsA("Smoke") or obj:IsA("Sparkles") or
-                       obj:IsA("Explosion") or obj:IsA("Trail") or
-                       obj:IsA("Beam") then
-                        obj:Destroy()
-                        objectsRemoved = objectsRemoved + 1
-                    end
+        
+        -- Optimizar materiales de todas las partes
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                obj.Material = Enum.Material.Plastic
+                obj.Reflectance = 0
+                obj.TopSurface = Enum.SurfaceType.Smooth
+                obj.BottomSurface = Enum.SurfaceType.Smooth
+                
+                -- Simplificar MeshParts
+                if obj:IsA("MeshPart") then
+                    obj.RenderFidelity = Enum.RenderFidelity.Performance
                 end
             end
         end
         
-        -- Eliminar decals y texturas
-        if OPTIMIZATION_CONFIG.removeDecals then
-            removeObjectsByClass(Workspace, "Decal")
-            removeObjectsByClass(Workspace, "Texture")
-            removeObjectsByClass(Workspace, "SurfaceGui")
-            objectsRemoved = objectsRemoved + 30
-        end
-        
-        -- Eliminar sonidos
-        if OPTIMIZATION_CONFIG.removeSounds then
-            removeObjectsByClass(Workspace, "Sound")
-            objectsRemoved = objectsRemoved + 15
-        end
-        
-        -- Optimizar materiales
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and not protectPlayer(obj) then
-                obj.Material = Enum.Material.Plastic
-                obj.Reflectance = 0
-            end
-        end
-    end)
-    
-    local endTime = tick()
-    showNotification("Anti-Lag OP", 
-        string.format("Limpieza: %d objetos en %.2fs", objectsRemoved, endTime - startTime), 4)
-end
-
--- Función para optimizar gráficos
-local function optimizeGraphics()
-    pcall(function()
+        -- Optimizar iluminación drásticamente
         Lighting.GlobalShadows = false
         Lighting.FogEnd = 100
+        Lighting.FogStart = 0
         Lighting.Technology = Enum.Technology.Legacy
+        Lighting.Brightness = 1
+        Lighting.Ambient = Color3.fromRGB(128, 128, 128)
         
+        -- Eliminar todos los efectos de iluminación
         for _, effect in pairs(Lighting:GetChildren()) do
-            if effect:IsA("PostEffect") then
+            if effect:IsA("PostEffect") or effect:IsA("Atmosphere") or 
+               effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or
+               effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") then
                 effect:Destroy()
             end
         end
         
+        -- Configuraciones de rendimiento extremas
         settings().Rendering.QualityLevel = 1
-        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04
-    end)
-end
-
--- Función de monitoreo FPS
-local function startFPSMonitor()
-    local lastCleanup = 0
-    local frameCount = 0
-    local startTime = tick()
-    
-    fpsMonitorConnection = RunService.Heartbeat:Connect(function()
-        frameCount = frameCount + 1
-        local currentTime = tick()
+        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
         
-        if currentTime - startTime >= 1 then
-            local fps = frameCount / (currentTime - startTime)
-            
-            if fps < 20 and currentTime - lastCleanup > 15 then
-                spawn(performCleanup)
-                lastCleanup = currentTime
+        -- Eliminar sonidos del workspace
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("Sound") then
+                obj:Destroy()
             end
-            
-            frameCount = 0
-            startTime = currentTime
         end
+        
+        print("Optimización extrema aplicada")
     end)
 end
 
--- Función para detener monitoreo
-local function stopFPSMonitor()
-    if fpsMonitorConnection then
-        fpsMonitorConnection:Disconnect()
-        fpsMonitorConnection = nil
-    end
-    if autoCleanConnection then
-        autoCleanConnection:Disconnect()
-        autoCleanConnection = nil
-    end
-end
-
--- BOTONES EN LA TAB OPTIMIZACIÓN
-
--- Botón principal Anti-Lag
-Opti:AddSwitch("Anti-Lag OP", function(Value)
-    antiLagEnabled = Value
+-- BOTÓN ÚNICO ANTI-LAG OP
+Opti:AddSwitch("Anti-Lag OP (Todo en Uno)", function(Value)
+    antiLagActive = Value
     
     if Value then
-        -- Activar Anti-Lag
-        showNotification("Anti-Lag OP", "🟢 Activado - Optimizando juego...", 3)
+        -- Activar todo
+        StarterGui:SetCore("SendNotification", {
+            Title = "Anti-Lag OP";
+            Text = "🟢 Activando optimización extrema...";
+            Duration = 3;
+        })
         
-        -- Ejecutar optimizaciones iniciales
-        spawn(function()
-            optimizeGraphics()
-            wait(0.5)
-            performCleanup()
-            wait(0.5)
-            startFPSMonitor()
-            
-            -- Auto-limpieza cada 45 segundos
-            autoCleanConnection = task.spawn(function()
-                while antiLagEnabled do
-                    wait(45)
-                    if antiLagEnabled then
-                        performCleanup()
-                    end
+        -- Aplicar optimizaciones
+        optimizeEverything()
+        
+        -- Activar pantalla negra
+        createBlackScreen()
+        
+        -- Limpieza automática cada 30 segundos
+        task.spawn(function()
+            while antiLagActive do
+                task.wait(30)
+                if antiLagActive then
+                    optimizeEverything()
+                    print("Limpieza automática ejecutada")
                 end
-            end)
+            end
         end)
+        
+        StarterGui:SetCore("SendNotification", {
+            Title = "Anti-Lag OP";
+            Text = "✅ Optimización completa activada!";
+            Duration = 4;
+        })
+        
     else
-        -- Desactivar Anti-Lag
-        stopFPSMonitor()
-        showNotification("Anti-Lag OP", "🔴 Desactivado", 2)
+        -- Desactivar
+        removeBlackScreen()
+        
+        StarterGui:SetCore("SendNotification", {
+            Title = "Anti-Lag OP";
+            Text = "🔴 Desactivado";
+            Duration = 2;
+        })
     end
 end)
 
--- Botón de limpieza manual
-Opti:AddButton("Limpieza Manual", function()
-    showNotification("Limpieza Manual", "Ejecutando limpieza...", 2)
-    performCleanup()
-end)
-
--- Botón modo extremo
-Opti:AddButton("Modo Extremo", function()
-    showNotification("Modo Extremo", "⚠️ Eliminando TODO excepto jugador...", 3)
-    
-    spawn(function()
-        pcall(function()
-            for _, obj in pairs(Workspace:GetChildren()) do
-                if obj ~= Character and not obj:IsA("Camera") and 
-                   obj.Name ~= "Terrain" and obj.Name ~= "CurrentCamera" then
-                    
-                    if not (obj.Name:lower():find("spawn") or obj.Name:lower():find("base")) then
-                        obj:Destroy()
-                    end
-                end
-            end
-            
-            -- Limpiar ReplicatedStorage
-            for _, obj in pairs(ReplicatedStorage:GetChildren()) do
-                if obj:IsA("Script") or obj:IsA("LocalScript") then
-                    obj:Destroy()
-                end
-            end
-        end)
-        
-        showNotification("Modo Extremo", "✅ Limpieza extrema completada!", 4)
-    end)
-end)
-
--- Botón optimizar gráficos
-Opti:AddButton("Optimizar Gráficos", function()
-    optimizeGraphics()
-    showNotification("Gráficos", "📱 Optimizado para móvil!", 3)
-end)
-
--- Toggles de configuración
-Opti:AddSwitch("Eliminar Partículas", function(Value)
-    OPTIMIZATION_CONFIG.removeParticles = Value
-end)
-
-Opti:AddSwitch("Eliminar Sonidos", function(Value)
-    OPTIMIZATION_CONFIG.removeSounds = Value
-end)
-
-Opti:AddSwitch("Eliminar Texturas", function(Value)
-    OPTIMIZATION_CONFIG.removeDecals = Value
-    OPTIMIZATION_CONFIG.removeTextures = Value
-end)
-
--- Información del sistema
-Opti:AddLabel("Estado: Sistema cargado correctamente")
-Opti:AddLabel("💡 Tip: Activa Anti-Lag OP para mejor rendimiento")
-
--- Notificación de carga
-showNotification("Tab Optimización", "✅ Anti-Lag OP cargado en la interfaz!", 5)
+Opti:AddLabel("💡 El Anti-Lag OP incluye:")
+Opti:AddLabel("• Pantalla negra automática")
+Opti:AddLabel("• Optimización de gráficos")
+Opti:AddLabel("• Limpieza automática cada 30s")
+Opti:AddLabel("• Eliminación de efectos visuales")
 
 -- FUNCIONES PARA FARMTAB
 local function eatProteinEgg()
@@ -836,65 +733,19 @@ FarmTab:AddButton("Anti AFK", function()
     end)
 end)
 
--- Variables para rastrear valores y tiempos
-local previousValues = {
-    Strength = 0,
-    Durability = 0,
-    Rebirths = 0,
-    Kills = 0
-}
+-- CALCULATOR CORREGIDO (SOLO STRENGTH Y DURABILITY)
+local strengthStartValue = 0
+local durabilityStartValue = 0
+local strengthStartTime = 0
+local durabilityStartTime = 0
+local strengthActive = false
+local durabilityActive = false
 
-local measurementStartTime = {
-    Strength = 0,
-    Durability = 0,
-    Rebirths = 0,
-    Kills = 0
-}
+-- Crear folders solo para Strength y Durability
+local strengthFolder = Calculator:AddFolder("💪 Strength")
+local durabilityFolder = Calculator:AddFolder("🛡️ Durability")
 
-local rates = {
-    Strength = 0,
-    Durability = 0,
-    Rebirths = 0,
-    Kills = 0
-}
-
--- Crear los 4 folders
-local strengthFolder = Calculator:AddFolder("  Strength")
-local durabilityFolder = Calculator:AddFolder("  Durability") 
-local rebirthsFolder = Calculator:AddFolder("  Rebirths")
-local killsFolder = Calculator:AddFolder("  Kills")
-
--- Función para obtener valor actual de estadística
-local function getCurrentValue(statName)
-    local player = game.Players.LocalPlayer
-    if not player then return 0 end
-    
-    if statName == "Strength" then
-        local leaderstats = player:FindFirstChild("leaderstats")
-        if leaderstats then
-            local stat = leaderstats:FindFirstChild("Strength")
-            return stat and stat.Value or 0
-        end
-    elseif statName == "Durability" then
-        local stat = player:FindFirstChild("Durability")
-        return stat and stat.Value or 0
-    elseif statName == "Rebirths" then
-        local leaderstats = player:FindFirstChild("leaderstats")
-        if leaderstats then
-            local stat = leaderstats:FindFirstChild("Rebirths")
-            return stat and stat.Value or 0
-        end
-    elseif statName == "Kills" then
-        local leaderstats = player:FindFirstChild("leaderstats")
-        if leaderstats then
-            local stat = leaderstats:FindFirstChild("Kills")
-            return stat and stat.Value or 0
-        end
-    end
-    return 0
-end
-
--- Función para formatear números grandes
+-- Función mejorada para formatear números
 local function formatNumber(num)
     if num == math.huge then
         return "∞"
@@ -908,174 +759,231 @@ local function formatNumber(num)
     local sign = num < 0 and "-" or ""
     
     if abs >= 1e30 then
-        return sign .. string.format("%.2f", abs / 1e30) .. "No"  -- Nonillion
+        return sign .. string.format("%.2f", abs / 1e30) .. "No"
     elseif abs >= 1e27 then
-        return sign .. string.format("%.2f", abs / 1e27) .. "Oc"  -- Octillion
+        return sign .. string.format("%.2f", abs / 1e27) .. "Oc"
     elseif abs >= 1e24 then
-        return sign .. string.format("%.2f", abs / 1e24) .. "Sp"  -- Septillion
+        return sign .. string.format("%.2f", abs / 1e24) .. "Sp"
     elseif abs >= 1e21 then
-        return sign .. string.format("%.2f", abs / 1e21) .. "Sx"  -- Sextillion
+        return sign .. string.format("%.2f", abs / 1e21) .. "Sx"
     elseif abs >= 1e18 then
-        return sign .. string.format("%.2f", abs / 1e18) .. "Qt"  -- Quintillion
+        return sign .. string.format("%.2f", abs / 1e18) .. "Qt"
     elseif abs >= 1e15 then
-        return sign .. string.format("%.2f", abs / 1e15) .. "Qd"  -- Quadrillion
+        return sign .. string.format("%.2f", abs / 1e15) .. "Qd"
     elseif abs >= 1e12 then
-        return sign .. string.format("%.2f", abs / 1e12) .. "T"   -- Trillion
+        return sign .. string.format("%.2f", abs / 1e12) .. "T"
     elseif abs >= 1e9 then
-        return sign .. string.format("%.2f", abs / 1e9) .. "B"    -- Billion
+        return sign .. string.format("%.2f", abs / 1e9) .. "B"
     elseif abs >= 1e6 then
-        return sign .. string.format("%.2f", abs / 1e6) .. "M"    -- Million
+        return sign .. string.format("%.2f", abs / 1e6) .. "M"
     elseif abs >= 1e3 then
-        return sign .. string.format("%.2f", abs / 1e3) .. "K"    -- Thousand
+        return sign .. string.format("%.2f", abs / 1e3) .. "K"
     else
         return sign .. string.format("%.2f", abs)
     end
 end
 
+-- Función para obtener valor actual de estadística
+local function getCurrentStrength()
+    local player = game.Players.LocalPlayer
+    if player and player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Strength") then
+        return player.leaderstats.Strength.Value
+    end
+    return 0
+end
+
+local function getCurrentDurability()
+    local player = game.Players.LocalPlayer
+    if player and player:FindFirstChild("Durability") then
+        return player.Durability.Value
+    end
+    return 0
+end
+
 -- Crear labels para Strength
 local strengthLabels = {
-    status = strengthFolder:AddLabel("Status: Iniciando..."),
-    perMinute = strengthFolder:AddLabel("Per Minute: -"),
-    perHour = strengthFolder:AddLabel("Per Hour: -"),
-    perDay = strengthFolder:AddLabel("Per Day: -"),
-    perWeek = strengthFolder:AddLabel("Per Week: -"),
-    perMonth = strengthFolder:AddLabel("Per Month: -")
+    status = strengthFolder:AddLabel("Status: Presiona Start para comenzar"),
+    current = strengthFolder:AddLabel("Current: 0"),
+    gained = strengthFolder:AddLabel("Gained: 0"),
+    perMinute = strengthFolder:AddLabel("Per Minute: 0"),
+    perHour = strengthFolder:AddLabel("Per Hour: 0"),
+    perDay = strengthFolder:AddLabel("Per Day: 0")
 }
 
 -- Crear labels para Durability
 local durabilityLabels = {
-    status = durabilityFolder:AddLabel("Status: Iniciando..."),
-    perMinute = durabilityFolder:AddLabel("Per Minute: -"),
-    perHour = durabilityFolder:AddLabel("Per Hour: -"),
-    perDay = durabilityFolder:AddLabel("Per Day: -"),
-    perWeek = durabilityFolder:AddLabel("Per Week: -"),
-    perMonth = durabilityFolder:AddLabel("Per Month: -")
+    status = durabilityFolder:AddLabel("Status: Presiona Start para comenzar"),
+    current = durabilityFolder:AddLabel("Current: 0"),
+    gained = durabilityFolder:AddLabel("Gained: 0"),
+    perMinute = durabilityFolder:AddLabel("Per Minute: 0"),
+    perHour = durabilityFolder:AddLabel("Per Hour: 0"),
+    perDay = durabilityFolder:AddLabel("Per Day: 0")
 }
 
--- Crear labels para Rebirths
-local rebirthsLabels = {
-    status = rebirthsFolder:AddLabel("Status: Iniciando..."),
-    perMinute = rebirthsFolder:AddLabel("Per Minute: -"),
-    perHour = rebirthsFolder:AddLabel("Per Hour: -"),
-    perDay = rebirthsFolder:AddLabel("Per Day: -"),
-    perWeek = rebirthsFolder:AddLabel("Per Week: -"),
-    perMonth = rebirthsFolder:AddLabel("Per Month: -")
-}
-
--- Crear labels para Kills
-local killsLabels = {
-    status = killsFolder:AddLabel("Status: Iniciando..."),
-    perMinute = killsFolder:AddLabel("Per Minute: -"),
-    perHour = killsFolder:AddLabel("Per Hour: -"),
-    perDay = killsFolder:AddLabel("Per Day: -"),
-    perWeek = killsFolder:AddLabel("Per Week: -"),
-    perMonth = killsFolder:AddLabel("Per Month: -")
-}
-
--- Función para actualizar labels de una estadística
-local function updateLabels(labels, rate, statName)
+-- Función para actualizar labels de Strength
+local function updateStrengthLabels()
+    local currentStrength = getCurrentStrength()
     local currentTime = tick()
-    local startTime = measurementStartTime[statName]
     
-    if startTime == 0 then
-        labels.status.Text = "Status: Esperando inicio automático..."
-        return
-    end
+    strengthLabels.current.Text = "Current: " .. formatNumber(currentStrength)
     
-    local timeElapsed = currentTime - startTime
-    
-    if timeElapsed < 60 then
-        local remaining = 60 - timeElapsed
-        labels.status.Text = "Status: Midiendo... " .. math.ceil(remaining) .. "s"
-        labels.perMinute.Text = "Per Minute: Calculando..."
-        labels.perHour.Text = "Per Hour: Calculando..."
-        labels.perDay.Text = "Per Day: Calculando..."
-        labels.perWeek.Text = "Per Week: Calculando..."
-        labels.perMonth.Text = "Per Month: Calculando..."
-    else
-        labels.status.Text = "Status:  Activo"
+    if strengthActive and strengthStartTime > 0 then
+        local timeElapsed = currentTime - strengthStartTime
+        local gained = currentStrength - strengthStartValue
         
-        local perMinute = rate
-        local perHour = rate * 60
-        local perDay = rate * 60 * 24
-        local perWeek = rate * 60 * 24 * 7
-        local perMonth = rate * 60 * 24 * 30
+        strengthLabels.gained.Text = "Gained: " .. formatNumber(gained)
         
-        labels.perMinute.Text = "Per Minute: " .. formatNumber(perMinute)
-        labels.perHour.Text = "Per Hour: " .. formatNumber(perHour)
-        labels.perDay.Text = "Per Day: " .. formatNumber(perDay)
-        labels.perWeek.Text = "Per Week: " .. formatNumber(perWeek)
-        labels.perMonth.Text = "Per Month: " .. formatNumber(perMonth)
-    end
-end
-
--- Función para inicializar medición automáticamente
-local function initializeMeasurement()
-    local currentTime = tick()
-    
-    for statName, _ in pairs(measurementStartTime) do
-        measurementStartTime[statName] = currentTime
-        previousValues[statName] = getCurrentValue(statName)
-    end
-    
-    print(" Calculator iniciado automáticamente")
-end
-
--- Función para reiniciar todo
-local function restartAll()
-    initializeMeasurement()
-    for statName, _ in pairs(rates) do
-        rates[statName] = 0
-    end
-    print(" Calculator reiniciado")
-end
-
--- Función principal de cálculo
-local function calculateRates()
-    local currentTime = tick()
-    
-    for statName, startTime in pairs(measurementStartTime) do
-        if startTime ~= 0 then
-            local timeElapsed = currentTime - startTime
+        if timeElapsed >= 60 then -- Solo calcular después de 1 minuto
+            local perMinute = (gained / timeElapsed) * 60
+            local perHour = perMinute * 60
+            local perDay = perHour * 24
             
-            if timeElapsed >= 60 then
-                local currentValue = getCurrentValue(statName)
-                local previousValue = previousValues[statName]
-                local difference = currentValue - previousValue
-                
-                -- Calcular rate por minuto
-                rates[statName] = (difference / timeElapsed) * 60
-            end
+            strengthLabels.status.Text = "Status: ✅ Activo"
+            strengthLabels.perMinute.Text = "Per Minute: " .. formatNumber(perMinute)
+            strengthLabels.perHour.Text = "Per Hour: " .. formatNumber(perHour)
+            strengthLabels.perDay.Text = "Per Day: " .. formatNumber(perDay)
+        else
+            local remaining = 60 - timeElapsed
+            strengthLabels.status.Text = "Status: ⏳ Calculando... " .. math.ceil(remaining) .. "s"
+            strengthLabels.perMinute.Text = "Per Minute: Calculando..."
+            strengthLabels.perHour.Text = "Per Hour: Calculando..."
+            strengthLabels.perDay.Text = "Per Day: Calculando..."
         end
+    else
+        strengthLabels.gained.Text = "Gained: 0"
+        strengthLabels.perMinute.Text = "Per Minute: 0"
+        strengthLabels.perHour.Text = "Per Hour: 0"
+        strengthLabels.perDay.Text = "Per Day: 0"
     end
-    
-    -- Actualizar todas las labels
-    updateLabels(strengthLabels, rates.Strength, "Strength")
-    updateLabels(durabilityLabels, rates.Durability, "Durability")
-    updateLabels(rebirthsLabels, rates.Rebirths, "Rebirths")
-    updateLabels(killsLabels, rates.Kills, "Kills")
 end
 
--- Botón de reinicio
-Calculator:AddButton(" Reiniciar Calculator", function()
-    restartAll()
+-- Función para actualizar labels de Durability
+local function updateDurabilityLabels()
+    local currentDurability = getCurrentDurability()
+    local currentTime = tick()
+    
+    durabilityLabels.current.Text = "Current: " .. formatNumber(currentDurability)
+    
+    if durabilityActive and durabilityStartTime > 0 then
+        local timeElapsed = currentTime - durabilityStartTime
+        local gained = currentDurability - durabilityStartValue
+        
+        durabilityLabels.gained.Text = "Gained: " .. formatNumber(gained)
+        
+        if timeElapsed >= 60 then -- Solo calcular después de 1 minuto
+            local perMinute = (gained / timeElapsed) * 60
+            local perHour = perMinute * 60
+            local perDay = perHour * 24
+            
+            durabilityLabels.status.Text = "Status: ✅ Activo"
+            durabilityLabels.perMinute.Text = "Per Minute: " .. formatNumber(perMinute)
+            durabilityLabels.perHour.Text = "Per Hour: " .. formatNumber(perHour)
+            durabilityLabels.perDay.Text = "Per Day: " .. formatNumber(perDay)
+        else
+            local remaining = 60 - timeElapsed
+            durabilityLabels.status.Text = "Status: ⏳ Calculando... " .. math.ceil(remaining) .. "s"
+            durabilityLabels.perMinute.Text = "Per Minute: Calculando..."
+            durabilityLabels.perHour.Text = "Per Hour: Calculando..."
+            durabilityLabels.perDay.Text = "Per Day: Calculando..."
+        end
+    else
+        durabilityLabels.gained.Text = "Gained: 0"
+        durabilityLabels.perMinute.Text = "Per Minute: 0"
+        durabilityLabels.perHour.Text = "Per Hour: 0"
+        durabilityLabels.perDay.Text = "Per Day: 0"
+    end
+end
+
+-- Botones de control para Strength
+strengthFolder:AddButton("🟢 Start Strength Calculator", function()
+    strengthActive = true
+    strengthStartTime = tick()
+    strengthStartValue = getCurrentStrength()
+    strengthLabels.status.Text = "Status: 🔄 Iniciado - Calculando..."
+    
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Calculator";
+        Text = "💪 Strength Calculator iniciado!";
+        Duration = 3;
+    })
 end)
 
--- Inicializar automáticamente
-task.spawn(function()
-    task.wait(2) -- Esperar a que cargue todo
-    initializeMeasurement()
+strengthFolder:AddButton("🔴 Stop Strength Calculator", function()
+    strengthActive = false
+    strengthStartTime = 0
+    strengthStartValue = 0
+    strengthLabels.status.Text = "Status: ⏹️ Detenido"
+    
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Calculator";
+        Text = "💪 Strength Calculator detenido!";
+        Duration = 3;
+    })
 end)
 
--- Loop principal
+-- Botones de control para Durability
+durabilityFolder:AddButton("🟢 Start Durability Calculator", function()
+    durabilityActive = true
+    durabilityStartTime = tick()
+    durabilityStartValue = getCurrentDurability()
+    durabilityLabels.status.Text = "Status: 🔄 Iniciado - Calculando..."
+    
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Calculator";
+        Text = "🛡️ Durability Calculator iniciado!";
+        Duration = 3;
+    })
+end)
+
+durabilityFolder:AddButton("🔴 Stop Durability Calculator", function()
+    durabilityActive = false
+    durabilityStartTime = 0
+    durabilityStartValue = 0
+    durabilityLabels.status.Text = "Status: ⏹️ Detenido"
+    
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Calculator";
+        Text = "🛡️ Durability Calculator detenido!";
+        Duration = 3;
+    })
+end)
+
+-- Botón para reiniciar ambos calculators
+Calculator:AddButton("🔄 Reset All Calculators", function()
+    -- Reset Strength
+    strengthActive = false
+    strengthStartTime = 0
+    strengthStartValue = 0
+    strengthLabels.status.Text = "Status: Presiona Start para comenzar"
+    
+    -- Reset Durability
+    durabilityActive = false
+    durabilityStartTime = 0
+    durabilityStartValue = 0
+    durabilityLabels.status.Text = "Status: Presiona Start para comenzar"
+    
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Calculator";
+        Text = "🔄 Todos los calculators han sido reiniciados!";
+        Duration = 3;
+    })
+end)
+
+Calculator:AddLabel("💡 Instrucciones:")
+Calculator:AddLabel("1. Presiona 'Start' en la stat que quieras medir")
+Calculator:AddLabel("2. Espera 1 minuto para ver los cálculos")
+Calculator:AddLabel("3. Los valores se actualizan automáticamente")
+
+-- Loop principal del calculator
 task.spawn(function()
     while true do
-        calculateRates()
-        task.wait(1)
+        updateStrengthLabels()
+        updateDurabilityLabels()
+        task.wait(1) -- Actualizar cada segundo
     end
 end)
 
-print("📊 Calculator cargado - Iniciará automáticamente en 2 segundos")
+print("📊 Calculator corregido - Solo Strength y Durability")
 
 creditsTab:AddLabel("╭──────────────────────────╮")
 creditsTab:AddLabel(" Script hecho por Isabella")
