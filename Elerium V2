@@ -43,7 +43,6 @@ local pets = window:AddTab("Pets")
 local Stats = window:AddTab("Stats")
 local Calculator = window:AddTab("Calculator")
 local Killer = window:AddTab("Killer")
-local Farm = window:AddTab("Packs")
 local teleport = window:AddTab("Teleport")
 local creditsTab = window:AddTab("Credits")
 
@@ -1121,6 +1120,18 @@ local teleportSwitch = rebirthsFolder:AddSwitch("Auto Teleport to Muscle King", 
     end
 end, "Teletransporte continuo al Rey Músculo")
 
+local autoEquipToolsOP = farmTab:AddFolder("  OP Farm Tools")
+
+autoEquipToolsOP:AddLabel("Instructions:")
+autoEquipToolsOP:AddLabel("To create durability and strength at the same time, simply equip Auto")
+autoEquipToolsOP:AddLabel("Puch in the Auto Tools folder and any of the tools to combine it.")
+autoEquipToolsOP:AddLabel("Remember to activate Fast Tools and the rock you want.")
+autoEquipToolsOP:AddLabel("")
+autoEquipToolsOP:AddLabel("Instrucciones")
+autoEquipToolsOP:AddLabel("Para hacer durabilidad y fuerza al mismo tiempo solo tienes que")
+autoEquipToolsOP:AddLabel("equipar auto punch en el folder de auto tools y cualquiera de las")
+autoEquipToolsOP:AddLabel("herramientas para combinarlo, recuerda activar fast tools y la roca que quieras")
+
 -- Misc 1 Folder
 local misc1Folder = miscTab:AddFolder("  Misc 1")
 
@@ -1307,6 +1318,22 @@ misc4Folder:AddSwitch("Hide Pets", function(State)
             game:GetService("ReplicatedStorage").rEvents.showPetsEvent:FireServer("showPets")
         end
     end)
+end)
+
+misc4Folder:AddButton("Rejoin Server", function()
+    local TeleportService = game:GetService("TeleportService")
+    
+    -- Obtener servidores disponibles y unirse a uno aleatorio
+    local success, result = pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, nil, player)
+    end)
+    
+    if not success then
+        -- Si falla, intentar teleport normal a un nuevo servidor
+        TeleportService:Teleport(game.PlaceId, player)
+    end
+    
+    print("Cambiando a otro servidor...")
 end)
 
 local misc5Folder = miscTab:AddFolder("  Misc 5")
@@ -2296,7 +2323,44 @@ end)
 
 print("📊 Calculator cargado - Iniciará automáticamente en 2 segundos")
 
-local titleLabel = Killer:AddLabel("Auto Kill ")
+-- Corregir variable: cambiar de 'Killing' a 'Killer'
+local titleLabel = Killer:AddLabel("Kill Aura")
+titleLabel.TextSize = 24
+titleLabel.Font = Enum.Font.Merriweather 
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Corregir variable: cambiar de 'Killing' a 'Killer'
+local dropdown = Killer:AddDropdown("Select Pet", function(text)
+    local petsFolder = game.Players.LocalPlayer.petsFolder
+    for _, folder in pairs(petsFolder:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("unequipPet", pet)
+            end
+        end
+    end
+    task.wait(0.2)
+
+    local petName = text
+    local petsToEquip = {}
+
+    for _, pet in pairs(game.Players.LocalPlayer.petsFolder.Unique:GetChildren()) do
+        if pet.Name == petName then
+            table.insert(petsToEquip, pet)
+        end
+    end
+
+    local maxPets = 8
+    local equippedCount = math.min(#petsToEquip, maxPets)
+
+    for i = 1, equippedCount do
+        game:GetService("ReplicatedStorage").rEvents.equipPetEvent:FireServer("equipPet", petsToEquip[i])
+        task.wait(0.1)
+    end
+end)
+
+local Wild_Wizard = dropdown:Add("Wild Wizard")
+local Chaos_Sorcerers = dropdown:Add("Chaos Sorcerers")
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -2311,6 +2375,41 @@ local autoEquipPunch = false
 local autoPunchNoAnim = false
 local targetDropdownItems = {}
 local availableTargets = {}
+
+-- Agregar variables faltantes
+local targetPlayerName = ""
+_G.deathRingRange = 50 -- Valor por defecto
+
+-- Funciones auxiliares para Death Ring
+local function checkCharacter()
+    return game.Players.LocalPlayer.Character
+end
+
+local function isWhitelisted(player)
+    return playerWhitelist[player.Name] or false
+end
+
+local function isPlayerAlive(player)
+    return player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0
+end
+
+local function killPlayer(targetPlayer)
+    local character = LocalPlayer.Character
+    local rightHand = character and character:FindFirstChild("RightHand")
+    local leftHand = character and character:FindFirstChild("LeftHand")
+    
+    if rightHand and leftHand and targetPlayer.Character then
+        local rootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            pcall(function()
+                firetouchinterest(rightHand, rootPart, 1)
+                firetouchinterest(leftHand, rootPart, 1)
+                firetouchinterest(rightHand, rootPart, 0)
+                firetouchinterest(leftHand, rootPart, 0)
+            end)
+        end
+    end
+end
 
 Killer:AddSwitch("Auto Good Karma", function(bool)
     autoGoodKarma = bool
@@ -2370,8 +2469,6 @@ Killer:AddSwitch("Auto Bad Karma", function(bool)
     end)
 end)
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local friendWhitelistActive = false
 
 Killer:AddSwitch("Auto Whitelist Friends", function(state)
@@ -2581,295 +2678,96 @@ end)
 
 Killer:AddLabel("---Egg Obligatorio And Nan---")
 
--- Switch principal
-Killer:AddSwitch("Punch Death", function(value)
-    allActive = value
-
-    -- Limpiar conexiones existentes
-    for _, conn in pairs(connections) do
-        if conn and typeof(conn) == "RBXScriptConnection" then
-            safeCall(function() conn:Disconnect() end)
-        end
-    end
-    connections = {}
-
-    if value then
-        -- Auto Punch
-        _G.AutoPunchToggle = true
-        spawn(function()
-            local character = player.Character or player.CharacterAdded:Wait()
-            local backpack = player:WaitForChild("Backpack")
-            local hand = "rightHand"
-
-            local function getMuscleEvent()
-                return player:FindFirstChild("muscleEvent")
-            end
-
-            -- Conexión para actualizar character
-            connections.CharacterAdded = player.CharacterAdded:Connect(function(char)
-                character = char
-            end)
-
-            -- Conexión para actualizar backpack
-            connections.BackpackAdded = player.ChildAdded:Connect(function(child)
-                if child.Name == "Backpack" then
-                    backpack = child
-                end
-            end)
-
-            -- Loop principal de Auto Punch
-            while _G.AutoPunchToggle and allActive do
-                safeCall(function()
-                    local muscleEvent = getMuscleEvent()
-                    character = player.Character
-                    
-                    if character and character:FindFirstChild("Humanoid") and muscleEvent then
-                        local punchEquipped = character:FindFirstChild("Punch")
-                        local punchInBackpack = backpack and backpack:FindFirstChild("Punch")
-
-                        if not punchEquipped and punchInBackpack then
-                            character.Humanoid:EquipTool(punchInBackpack)
-                        end
-
-                        muscleEvent:FireServer("punch", hand)
-                    end
+-- Switch para activar URLs externas
+Killer:AddSwitch("Punch Boost Scripts", function(Value)
+    _G.PunchBoostActive = Value
+    
+    if Value then
+        local urls = {
+            "https://raw.githubusercontent.com/Sherya-Script-Private/Muerto/refs/heads/main/Punch1 ",
+            "https://raw.githubusercontent.com/Sherya-Script-Private/Muerto/refs/heads/main/puch2",
+            "https://raw.githubusercontent.com/Sherya-Script-Private/Muerto/refs/heads/main/punch3",
+            "https://raw.githubusercontent.com/Sherya-Script-Private/Muerto/refs/heads/main/punch4",
+            "https://raw.githubusercontent.com/Sherya-Script-Private/Muerto/refs/heads/main/punch5",
+            "https://raw.githubusercontent.com/Sherya-Script-Private/Muerto/refs/heads/main/punch6"
+        }
+        
+        -- Ejecutar todos los scripts de las URLs
+        task.spawn(function()
+            for i, url in ipairs(urls) do
+                if not _G.PunchBoostActive then break end
+                
+                local success, result = pcall(function()
+                    loadstring(game:HttpGet(url, true))()
+                    print("Punch Boost Script " .. i .. " cargado exitosamente")
                 end)
-                task.wait(0.0001)
-            end
-        end)
-
-        -- Auto Protein Egg
-        _G.AutoProteinEgg = true
-        spawn(function()
-            local toolName = "Protein Egg"
-            local character = player.Character or player.CharacterAdded:Wait()
-
-            local function restoreVisibility(tool)
-                if not tool then return end
-                for _, part in ipairs(tool:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        safeCall(function()
-                            part.Transparency = 0
-                            part.LocalTransparencyModifier = 0
-                        end)
-                    end
-                end
-            end
-
-            local function findTool()
-                local tool = player.Backpack:FindFirstChild(toolName)
-                if tool then return tool end
                 
-                tool = starterPack:FindFirstChild(toolName)
-                if tool then return tool end
+                if not success then
+                    warn("Error cargando script " .. i .. ": " .. tostring(result))
+                end
                 
-                tool = replicatedStorage:FindFirstChild(toolName)
-                return tool
+                task.wait(0.5) -- Pequeña pausa entre scripts para estabilidad
             end
-
-            local function forceEquip(tool)
-                if not (character and character:FindFirstChild("Humanoid") and tool) then return end
-                
-                safeCall(function()
-                    character.Humanoid:EquipTool(tool)
-                end)
-                task.wait(0.1)
-
-                if not character:FindFirstChild(toolName) then
-                    safeCall(function()
-                        tool.Parent = character
-                    end)
-                    task.wait(0.1)
-                end
-
-                local equipped = character:FindFirstChild(toolName)
-                if equipped then
-                    restoreVisibility(equipped)
-                end
-            end
-
-            local function equipIfNeeded()
-                if not _G.AutoProteinEgg or not character or not allActive then return end
-
-                local equipped = character:FindFirstChild(toolName)
-                local needEquip = false
-
-                if not equipped then
-                    needEquip = true
-                else
-                    for _, part in ipairs(equipped:GetDescendants()) do
-                        if part:IsA("BasePart") and part.Transparency > 0 then
-                            needEquip = true
-                            break
-                        end
-                    end
-                end
-
-                if needEquip then
-                    local tool = findTool()
-                    if tool then
-                        if tool.Parent ~= player.Backpack then
-                            safeCall(function()
-                                local clone = tool:Clone()
-                                clone.Parent = player.Backpack
-                                tool = clone
-                            end)
-                        end
-                        forceEquip(tool)
-                    end
-                end
-            end
-
-            -- Conexiones para Protein Egg
-            connections.CharacterAddedEgg = player.CharacterAdded:Connect(function(char)
-                character = char
-                task.wait(1)
-                equipIfNeeded()
-            end)
-
-            connections.BackpackChildAdded = player.Backpack.ChildAdded:Connect(function(child)
-                if _G.AutoProteinEgg and child.Name == toolName then
-                    task.wait(0.2)
-                    equipIfNeeded()
-                end
-            end)
-
-            -- Loop principal de Protein Egg
-            while _G.AutoProteinEgg and allActive do
-                equipIfNeeded()
-                task.wait(0.5)
-            end
-        end)
-
-        -- Anti Fly
-        getgenv().AntiFlyActive = true
-        connections.AntiFly = runService.Heartbeat:Connect(function()
-            if not getgenv().AntiFlyActive or not allActive then return end
             
-            local char = player.Character
-            if not char then return end
-            
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if not root then return end
-            
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if not humanoid then return end
-
-            safeCall(function()
-                local raycastParams = RaycastParams.new()
-                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                raycastParams.FilterDescendantsInstances = {char}
-                
-                local raycastResult = workspace:Raycast(root.Position, Vector3.new(0, -500, 0), raycastParams)
-                
-                if raycastResult then
-                    local groundY = raycastResult.Position.Y
-                    local currentY = root.Position.Y
-                    if currentY - groundY > 0.5 then
-                        root.CFrame = CFrame.new(root.Position.X, groundY + 0.5, root.Position.Z)
-                        humanoid.PlatformStand = true
-                        humanoid.PlatformStand = false
-                    end
-                end
-            end)
-        end)
-
-        -- Anti Lag
-        spawn(function()
-            local function softAntiLag()
-                local classesToClean = {
-                    ["ParticleEmitter"] = true,
-                    ["Trail"] = true,
-                    ["Smoke"] = true,
-                    ["Fire"] = true
-                }
-
-                safeCall(function()
-                    for _, obj in ipairs(workspace:GetChildren()) do
-                        if obj:IsA("Model") or obj:IsA("Part") then
-                            for _, sub in ipairs(obj:GetChildren()) do
-                                if classesToClean[sub.ClassName] then
-                                    sub:Destroy()
-                                end
-                            end
-                        end
-                    end
-                end)
-
-                local terrain = workspace:FindFirstChildOfClass("Terrain")
-                if terrain then
-                    safeCall(function()
-                        terrain.WaterWaveSize = 0
-                        terrain.WaterReflectance = 0
-                        terrain.WaterTransparency = 1
-                    end)
-                end
-            end
-
-            local function setSunsetSky()
-                safeCall(function()
-                    local lighting = game:GetService("Lighting")
-                    lighting.ClockTime = 18
-                    lighting.Brightness = 1.5
-                    lighting.OutdoorAmbient = Color3.fromRGB(150, 100, 80)
-                    lighting.FogColor = Color3.fromRGB(200, 120, 100)
-                    lighting.FogEnd = 500
-
-                    for _, v in ipairs(lighting:GetChildren()) do
-                        if v:IsA("Sky") then
-                            v:Destroy()
-                        end
-                    end
-
-                    local sky = Instance.new("Sky")
-                    sky.Name = "SunsetSky"
-                    sky.SkyboxBk = "rbxassetid://131889017"
-                    sky.SkyboxDn = "rbxassetid://131889017"
-                    sky.SkyboxFt = "rbxassetid://131889017"
-                    sky.SkyboxLf = "rbxassetid://131889017"
-                    sky.SkyboxRt = "rbxassetid://131889017"
-                    sky.SkyboxUp = "rbxassetid://131889017"
-                    sky.SunAngularSize = 10
-                    sky.MoonAngularSize = 0
-                    sky.SunTextureId = "rbxassetid://644432992"
-                    sky.Parent = lighting
-                end)
-            end
-
-            softAntiLag()
-            setSunsetSky()
-        end)
-
-        -- Auto Tropical Shake
-        spawn(function()
-            local backpack = player:WaitForChild("Backpack")
-            while allActive do
-                safeCall(function()
-                    local shake = backpack:FindFirstChild("Tropical Shake")
-                    if not shake then
-                        return
-                    end
-
-                    shake.Parent = player.Character
-                    runService.Heartbeat:Wait()
-
-                    if shake.Activate then
-                        shake:Activate()
-                    elseif mouse1click then
-                        mouse1click()
-                    end
-                end)
-                task.wait(0.1)
+            if _G.PunchBoostActive then
+                print("Todos los Punch Boost Scripts han sido cargados")
             end
         end)
-
+        
     else
-        -- Desactivar todo
-        _G.AutoPunchToggle = false
-        _G.AutoProteinEgg = false
-        getgenv().AntiFlyActive = false
+        print("Punch Boost Scripts desactivados")
+    end
+end, "Activa scripts especiales de punch boost desde URLs externas")
+
+-- Corregir variable: cambiar de 'Killing' a 'Killer'
+Killer:AddTextBox("Range (1-140)", function(text)
+    local range = tonumber(text)
+    if range then
+        range = math.clamp(range, 1, 140)
+        _G.deathRingRange = range
     end
 end)
+
+-- Corregir variable: cambiar de 'Killing' a 'Killer'
+local deathRingSwitch = Killer:AddSwitch("Death Ring", function(bool)
+    _G.deathRingEnabled = bool
+
+    if bool then
+        if not _G.deathRingConnection then
+            local RunService = game:GetService("RunService")
+
+            _G.deathRingConnection = RunService.Heartbeat:Connect(function()
+                if not _G.deathRingEnabled then return end
+
+                local character = checkCharacter()
+                if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+                local myPosition = character.HumanoidRootPart.Position
+
+                for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+                    if player == game.Players.LocalPlayer or isWhitelisted(player) then
+                        continue
+                    end
+
+                    if isPlayerAlive(player) then
+                        local playerPosition = player.Character.HumanoidRootPart.Position
+                        local distance = (myPosition - playerPosition).Magnitude
+
+                        if distance <= _G.deathRingRange then
+                            killPlayer(player)
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        if _G.deathRingConnection then
+            _G.deathRingConnection:Disconnect()
+            _G.deathRingConnection = nil
+        end
+    end
+end)
+deathRingSwitch:Set(false)
 
 local button = Killer:AddButton("Remove Punch Anim", function()
     local blockedAnimations = {
@@ -3159,9 +3057,6 @@ Killer:AddSwitch("Fast Punch", function(state)
 	end
 end)
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
 local killsShown = false
 local killsGui = nil
 
@@ -3225,507 +3120,6 @@ local showKillsButton = Killer:AddButton("Kill Counter UI", function()
 end)
 
 showKillsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-
-local startTime = 0
-local rebirthStartTime = 0
-local startRebirths = 0
-local hasStarted = false
-local targetRebirth = math.huge
-
-local packFarmTarget = false
-local packFarmInfinite = false
-local fastStrength = false
-
-local function formatNumber(number)
-    if number >= 1e15 then return string.format("%.2fQ", number/1e15)
-    elseif number >= 1e12 then return string.format("%.2fT", number/1e12)
-    elseif number >= 1e9 then return string.format("%.2fB", number/1e9)
-    elseif number >= 1e6 then return string.format("%.2fM", number/1e6)
-    elseif number >= 1e3 then return string.format("%.2fK", number/1e3)
-    end
-    return tostring(math.floor(number))
-end
-
-local function formatNumberWithCommas(number)
-    local formatted = tostring(math.floor(number))
-    local k
-    while true do
-        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
-        if k == 0 then break end
-    end
-    return formatted
-end
-
-local function formatTime(seconds)
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = math.floor(seconds % 60)
-    return string.format("%02d:%02d:%02d", hours, minutes, secs)
-end
-
-local packRebirthValues = {
-    [0] = 1,  
-    [1] = 2,  
-    [2] = 4,  
-    [3] = 6,  
-    [4] = 8,  
-    [5] = 10, 
-    [6] = 12, 
-    [7] = 14, 
-    [8] = 16  
-}
-
-local function unequipAllPets()
-    local petsFolder = player.petsFolder
-    for _, folder in pairs(petsFolder:GetChildren()) do
-        if folder:IsA("Folder") then
-            for _, pet in pairs(folder:GetChildren()) do
-                ReplicatedStorage.rEvents.equipPetEvent:FireServer("unequipPet", pet)
-            end
-        end
-    end
-    task.wait(0.1)
-end
-
-local function equipSpecificPacks(packName, count)
-    unequipAllPets()
-    task.wait(0.2)
-
-    local packs = {}
-    for _, pet in pairs(player.petsFolder.Unique:GetChildren()) do
-        if pet.Name == packName then
-            table.insert(packs, pet)
-        end
-    end
-
-    local packsToEquip = math.min(count, #packs)
-    for i = 1, packsToEquip do
-        ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", packs[i])
-        task.wait(0.1)
-    end
-
-    return packsToEquip
-end
-
-local function findMachine(machineName)
-    local machine = workspace.machinesFolder:FindFirstChild(machineName)
-    if not machine then
-        for _, folder in pairs(workspace:GetChildren()) do
-            if folder:IsA("Folder") and folder.Name:find("machines") then
-                machine = folder:FindFirstChild(machineName)
-                if machine then break end
-            end
-        end
-    end
-    return machine
-end
-
-local function pressE()
-    local vim = game:GetService("VirtualInputManager")
-    vim:SendKeyEvent(true, "E", false, game)
-    task.wait(0.1)
-    vim:SendKeyEvent(false, "E", false, game)
-end
-
-local isPositionLocked = false
-local originalCFrame = nil
-local function lockPosition(lock)
-    isPositionLocked = lock
-
-    if lock and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        originalCFrame = player.Character.HumanoidRootPart.CFrame
-
-        if not _G.positionConnection then
-            _G.positionConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                if isPositionLocked and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and originalCFrame then
-                    player.Character.HumanoidRootPart.CFrame = originalCFrame
-                    player.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-                    player.Character.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
-                end
-            end)
-        end
-    elseif not lock and _G.positionConnection then
-        _G.positionConnection:Disconnect()
-        _G.positionConnection = nil
-    end
-end
-
-local function calculateOptimalPacks(currentRebirths, targetRebirths)
-    local rebirthsNeeded = targetRebirths - currentRebirths
-
-    if rebirthsNeeded <= 0 then
-        return 0
-    end
-
-    if rebirthsNeeded == 1 then
-        return 0
-    end
-
-    for packCount = 1, 8 do
-        if packRebirthValues[packCount] == rebirthsNeeded then
-            return packCount
-        end
-    end
-
-    for packCount = 8, 1, -1 do
-        if packRebirthValues[packCount] < rebirthsNeeded then
-            local remaining = rebirthsNeeded - packRebirthValues[packCount]
-
-            if remaining == 1 then
-                return packCount
-            end
-
-            for secondPackCount = 8, 0, -1 do
-                if packRebirthValues[secondPackCount] == remaining then
-                    return packCount
-                end
-            end
-
-            return packCount
-        end
-    end
-
-    return 0
-end
-
-Farm:AddTextBox("Target Rebirth Amount", function(text)
-    local num = tonumber(text)
-    if num then
-        targetRebirth = num
-    else
-        targetRebirth = math.huge
-    end
-end)
-
-local targetPackToggle = Farm:AddSwitch("Pack Farm | Target", function(bool)
-    packFarmTarget = bool
-
-    if bool then
-        if packFarmInfinite then
-            packFarmInfinite = false
-            infinitePackToggle:Set(false)
-        end
-
-        if fastStrength then
-            fastStrength = false
-            fastStrengthToggle:Set(false)
-        end
-
-        if targetRebirth ~= math.huge and targetRebirth > player.leaderstats.Rebirths.Value then
-            task.spawn(function()
-                lockPosition(true)
-
-                while packFarmTarget do
-                    local currentRebirths = player.leaderstats.Rebirths.Value
-
-                    if currentRebirths >= targetRebirth then
-                        packFarmTarget = false
-                        targetPackToggle:Set(false)
-                        lockPosition(false)
-                        break
-                    end
-
-                    local rebirthCost = 10000 + (5000 * currentRebirths)
-                    if player.ultimatesFolder:FindFirstChild("Golden Rebirth") then
-                        local goldenRebirths = player.ultimatesFolder["Golden Rebirth"].Value
-                        rebirthCost = math.floor(rebirthCost * (1 - (goldenRebirths * 0.1)))
-                    end
-
-                    local rebirthsNeeded = targetRebirth - currentRebirths
-
-                    local packCount = 0
-
-                    if rebirthsNeeded == 1 then
-                        packCount = 0
-                    else
-                        for i = 8, 1, -1 do
-                            if packRebirthValues[i] <= rebirthsNeeded then
-                                packCount = i
-                                break
-                            end
-                        end
-                    end
-
-                    equipSpecificPacks("Swift Samurai", 8)
-
-                    while packFarmTarget and player.leaderstats.Strength.Value < rebirthCost do
-                        for i = 1, 10 do
-                            player.muscleEvent:FireServer("rep")
-                        end
-                        task.wait()
-                    end
-
-                    equipSpecificPacks("Tribal Overlord", packCount)
-
-                    local machine = findMachine("Jungle Bar Lift")
-                    if machine and machine:FindFirstChild("interactSeat") then
-                        player.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
-                        repeat
-                            task.wait(0.1)
-                            pressE()
-                        until player.Character.Humanoid.Sit
-                    end
-
-                    local initialRebirths = player.leaderstats.Rebirths.Value
-                    repeat
-                        ReplicatedStorage.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
-                        task.wait(0.1)
-                    until player.leaderstats.Rebirths.Value > initialRebirths
-
-                    task.wait(0.5)
-                end
-
-                lockPosition(false)
-                unequipAllPets()
-            end)
-        else
-            packFarmTarget = false
-            targetPackToggle:Set(false)
-        end
-    else
-        lockPosition(false)
-        unequipAllPets()
-    end
-end)
-
-local infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
-    packFarmInfinite = bool
-
-    if bool then
-        if packFarmTarget then
-            packFarmTarget = false
-            targetPackToggle:Set(false)
-        end
-
-        if fastStrength then
-            fastStrength = false
-            fastStrengthToggle:Set(false)
-        end
-
-        task.spawn(function()
-            lockPosition(true)
-
-            while packFarmInfinite do
-                local currentRebirths = player.leaderstats.Rebirths.Value
-
-                local rebirthCost = 10000 + (5000 * currentRebirths)
-                if player.ultimatesFolder:FindFirstChild("Golden Rebirth") then
-                    local goldenRebirths = player.ultimatesFolder["Golden Rebirth"].Value
-                    rebirthCost = math.floor(rebirthCost * (1 - (goldenRebirths * 0.1)))
-                end
-
-                equipSpecificPacks("Swift Samurai", 8)
-
-                while packFarmInfinite and player.leaderstats.Strength.Value < rebirthCost do
-                    for i = 1, 10 do
-                        player.muscleEvent:FireServer("rep")
-                    end
-                    task.wait()
-                end
-
-                equipSpecificPacks("Tribal Overlord", 8)
-
-                local machine = findMachine("Jungle Bar Lift")
-                if machine and machine:FindFirstChild("interactSeat") then
-                    player.Character.HumanoidRootPart.CFrame = machine.interactSeat.CFrame * CFrame.new(0, 3, 0)
-                    repeat
-                        task.wait(0.1)
-                        pressE()
-                    until player.Character.Humanoid.Sit
-                end
-
-                local initialRebirths = player.leaderstats.Rebirths.Value
-                repeat
-                    ReplicatedStorage.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
-                    task.wait(0.1)
-                until player.leaderstats.Rebirths.Value > initialRebirths
-
-                task.wait(0.5)
-            end
-
-            lockPosition(false)
-            unequipAllPets()
-        end)
-    else
-        lockPosition(false)
-        unequipAllPets()
-    end
-end)
-
-local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
-    fastStrength = bool
-
-    if bool then
-        if packFarmTarget then
-            packFarmTarget = false
-            targetPackToggle:Set(false)
-        end
-
-        if packFarmInfinite then
-            packFarmInfinite = false
-            infinitePackToggle:Set(false)
-        end
-
-        task.spawn(function()
-            equipSpecificPacks("Swift Samurai", 8)
-
-            while fastStrength do
-                for i = 1, 10 do
-                    player.muscleEvent:FireServer("rep")
-                end
-                task.wait()
-            end
-        end)
-    else
-        unequipAllPets()
-    end
-end)
-
-local statsFolder = Farm:AddFolder("Rebirth Statistics")
-local runTimeLabel = statsFolder:AddLabel("RunTime: 00:00:00")
-local currentRebirthsLabel = statsFolder:AddLabel("Current Rebirths: 0")
-local rebirthGainsLabel = statsFolder:AddLabel("Rebirth Gains: 0")
-local targetRebirthLabel = statsFolder:AddLabel("Target Rebirth: None")
-local rebirthsNeededLabel = statsFolder:AddLabel("Rebirths Needed: N/A")
-local timeToTargetLabel = statsFolder:AddLabel("Time To Target: N/A")
-local estimatedCompletionLabel = statsFolder:AddLabel("Estimated Completion: N/A")
-local perMinuteLabel = statsFolder:AddLabel("Per Minute: 0")
-local perHourLabel = statsFolder:AddLabel("Per Hour: 0")
-local hours12Label = statsFolder:AddLabel("12 Hours: 0")
-local hours24Label = statsFolder:AddLabel("24 Hours: 0")
-
-local settingsFolder = Farm:AddFolder("Settings")
-settingsFolder:AddButton("Reset RunTime", function()
-    startTime = os.time()
-    rebirthStartTime = os.time()
-    if player.leaderstats and player.leaderstats.Rebirths then
-        startRebirths = player.leaderstats.Rebirths.Value
-        hasStarted = true
-    else
-        startRebirths = 0
-        hasStarted = false
-    end
-end)
-
-task.spawn(function()
-    startTime = os.time()
-    rebirthStartTime = os.time()
-
-    if player.leaderstats and player.leaderstats.Rebirths then
-        startRebirths = player.leaderstats.Rebirths.Value
-    end
-
-    while true do
-        if player.leaderstats and player.leaderstats.Rebirths then
-            local currentRebirths = player.leaderstats.Rebirths.Value
-            local elapsedTime = os.time() - startTime
-            local rebirthElapsedTime = os.time() - rebirthStartTime
-
-            currentRebirthsLabel.Text = string.format("Current Rebirths: %s", 
-                formatNumberWithCommas(currentRebirths))
-
-            if targetRebirth ~= math.huge then
-                targetRebirthLabel.Text = string.format("Target Rebirth: %s", 
-                    formatNumberWithCommas(targetRebirth))
-            else
-                targetRebirthLabel.Text = "Target Rebirth: None"
-            end
-
-            if hasStarted then
-                local gainedRebirths = currentRebirths - startRebirths
-
-                rebirthGainsLabel.Text = string.format("Rebirth Gains: %s", 
-                    formatNumberWithCommas(gainedRebirths))
-
-                    if rebirthElapsedTime > 0 then
-                        local perMinute = gainedRebirths / (rebirthElapsedTime / 60)
-                        local perHour = perMinute * 60
-
-                        perMinuteLabel.Text = string.format("Per Minute: %s", 
-                            formatNumberWithCommas(perMinute))
-                        perHourLabel.Text = string.format("Per Hour: %s", 
-                            formatNumberWithCommas(perHour))
-                        hours12Label.Text = string.format("12 Hours: %s", 
-                            formatNumberWithCommas(perHour * 12))
-                        hours24Label.Text = string.format("24 Hours: %s", 
-                            formatNumberWithCommas(perHour * 24))
-
-                        if targetRebirth ~= math.huge then
-                            local rebirthsNeeded = targetRebirth - currentRebirths
-                            rebirthsNeededLabel.Text = string.format("Rebirths Needed: %s",
-                                formatNumberWithCommas(rebirthsNeeded))
-
-                            if perHour > 0 and rebirthsNeeded > 0 then
-                                local hoursToTarget = rebirthsNeeded / perHour
-                                local timeToTarget = formatTime(hoursToTarget * 3600)
-                                timeToTargetLabel.Text = string.format("Time To Target: %s", timeToTarget)
-
-                                local completionTimestamp = os.time() + (hoursToTarget * 3600)
-                                local completionDate = os.date("%m/%d/%Y %H:%M", completionTimestamp)
-                                estimatedCompletionLabel.Text = string.format("Estimated Completion: %s", completionDate)
-                            elseif rebirthsNeeded <= 0 then
-                                timeToTargetLabel.Text = "Time To Target: Reached!"
-                                estimatedCompletionLabel.Text = "Estimated Completion: Completed!"
-                            else
-                                timeToTargetLabel.Text = "Time To Target: N/A"
-                                estimatedCompletionLabel.Text = "Estimated Completion: N/A"
-                            end
-                        else
-                            rebirthsNeededLabel.Text = "Rebirths Needed: N/A"
-                            timeToTargetLabel.Text = "Time To Target: N/A"
-                            estimatedCompletionLabel.Text = "Estimated Completion: N/A"
-                        end
-                    end
-
-                    local timeString = formatTime(elapsedTime)
-                    runTimeLabel.Text = string.format("RunTime: %s", timeString)
-                else
-                    rebirthGainsLabel.Text = "Rebirth Gains: 0"
-                    perMinuteLabel.Text = "Per Minute: 0"
-                    perHourLabel.Text = "Per Hour: 0"
-                    hours12Label.Text = "12 Hours: 0"
-                    hours24Label.Text = "24 Hours: 0"
-
-                    runTimeLabel.Text = "RunTime: 00:00:00"
-
-                    rebirthsNeededLabel.Text = "Rebirths Needed: N/A"
-                    timeToTargetLabel.Text = "Time To Target: N/A"
-                    estimatedCompletionLabel.Text = "Estimated Completion: N/A"
-                end
-            else
-                currentRebirthsLabel.Text = "Current Rebirths: Waiting..."
-            end
-
-            task.wait(1)
-        end
-    end)
-
-    local function checkForRebirthStart()
-        if not player.leaderstats or not player.leaderstats:FindFirstChild("Rebirths") then
-            repeat
-                task.wait(0.5)
-            until player.leaderstats and player.leaderstats:FindFirstChild("Rebirths")
-        end
-
-        local initialRebirths = player.leaderstats.Rebirths.Value
-
-        player.leaderstats.Rebirths:GetPropertyChangedSignal("Value"):Connect(function()
-            local newRebirths = player.leaderstats.Rebirths.Value
-            if not hasStarted and newRebirths > initialRebirths then
-                startTime = os.time()
-                rebirthStartTime = os.time()
-                startRebirths = initialRebirths
-                hasStarted = true
-            end
-        end)
-    end
-
-    task.spawn(checkForRebirthStart)
 
 teleport:AddButton("Spawn", function()
     local player = game.Players.LocalPlayer
