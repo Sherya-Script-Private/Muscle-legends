@@ -8,6 +8,7 @@ local window = library:AddWindow("Sherya Script | Galaxy Hub", {
 local Farm = window:AddTab("Farm")
 local Opti = window:AddTab("Optimizacion")
 local FarmTab = window:AddTab("Extra")
+local Calculator = window:AddTab("Calculator")
 local creditsTab = window:AddTab("Credits")
 
 local HttpService = game:GetService("HttpService")
@@ -313,7 +314,6 @@ infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
     end
 end)
 
-Farm:AddLabel("-----Fast Strength No rebirth-----")
 fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
     fastStrength = bool
 
@@ -678,14 +678,14 @@ Opti:AddSwitch("Anti-Lag OP", function(Value)
 end)
 
 -- Botón de limpieza manual
-Opti:AddButton("🗑️ Limpieza Manual", function()
+Opti:AddButton("Limpieza Manual", function()
     showNotification("Limpieza Manual", "Ejecutando limpieza...", 2)
     performCleanup()
 end)
 
 -- Botón modo extremo
-Opti:AddButton(" Modo Extremo", function()
-    showNotification("Modo Extremo", " Eliminando TODO excepto jugador...", 3)
+Opti:AddButton("Modo Extremo", function()
+    showNotification("Modo Extremo", "⚠️ Eliminando TODO excepto jugador...", 3)
     
     spawn(function()
         pcall(function()
@@ -733,7 +733,7 @@ end)
 
 -- Información del sistema
 Opti:AddLabel("Estado: Sistema cargado correctamente")
-Opti:AddLabel("Tip: Activa Anti-Lag OP para mejor rendimiento")
+Opti:AddLabel("💡 Tip: Activa Anti-Lag OP para mejor rendimiento")
 
 -- Notificación de carga
 showNotification("Tab Optimización", "✅ Anti-Lag OP cargado en la interfaz!", 5)
@@ -835,6 +835,247 @@ FarmTab:AddButton("Anti AFK", function()
         end
     end)
 end)
+
+-- Variables para rastrear valores y tiempos
+local previousValues = {
+    Strength = 0,
+    Durability = 0,
+    Rebirths = 0,
+    Kills = 0
+}
+
+local measurementStartTime = {
+    Strength = 0,
+    Durability = 0,
+    Rebirths = 0,
+    Kills = 0
+}
+
+local rates = {
+    Strength = 0,
+    Durability = 0,
+    Rebirths = 0,
+    Kills = 0
+}
+
+-- Crear los 4 folders
+local strengthFolder = Calculator:AddFolder("  Strength")
+local durabilityFolder = Calculator:AddFolder("  Durability") 
+local rebirthsFolder = Calculator:AddFolder("  Rebirths")
+local killsFolder = Calculator:AddFolder("  Kills")
+
+-- Función para obtener valor actual de estadística
+local function getCurrentValue(statName)
+    local player = game.Players.LocalPlayer
+    if not player then return 0 end
+    
+    if statName == "Strength" then
+        local leaderstats = player:FindFirstChild("leaderstats")
+        if leaderstats then
+            local stat = leaderstats:FindFirstChild("Strength")
+            return stat and stat.Value or 0
+        end
+    elseif statName == "Durability" then
+        local stat = player:FindFirstChild("Durability")
+        return stat and stat.Value or 0
+    elseif statName == "Rebirths" then
+        local leaderstats = player:FindFirstChild("leaderstats")
+        if leaderstats then
+            local stat = leaderstats:FindFirstChild("Rebirths")
+            return stat and stat.Value or 0
+        end
+    elseif statName == "Kills" then
+        local leaderstats = player:FindFirstChild("leaderstats")
+        if leaderstats then
+            local stat = leaderstats:FindFirstChild("Kills")
+            return stat and stat.Value or 0
+        end
+    end
+    return 0
+end
+
+-- Función para formatear números grandes
+local function formatNumber(num)
+    if num == math.huge then
+        return "∞"
+    elseif num == 0 then
+        return "0"
+    elseif num < 0.01 and num > 0 then
+        return "~0"
+    end
+    
+    local abs = math.abs(num)
+    local sign = num < 0 and "-" or ""
+    
+    if abs >= 1e30 then
+        return sign .. string.format("%.2f", abs / 1e30) .. "No"  -- Nonillion
+    elseif abs >= 1e27 then
+        return sign .. string.format("%.2f", abs / 1e27) .. "Oc"  -- Octillion
+    elseif abs >= 1e24 then
+        return sign .. string.format("%.2f", abs / 1e24) .. "Sp"  -- Septillion
+    elseif abs >= 1e21 then
+        return sign .. string.format("%.2f", abs / 1e21) .. "Sx"  -- Sextillion
+    elseif abs >= 1e18 then
+        return sign .. string.format("%.2f", abs / 1e18) .. "Qt"  -- Quintillion
+    elseif abs >= 1e15 then
+        return sign .. string.format("%.2f", abs / 1e15) .. "Qd"  -- Quadrillion
+    elseif abs >= 1e12 then
+        return sign .. string.format("%.2f", abs / 1e12) .. "T"   -- Trillion
+    elseif abs >= 1e9 then
+        return sign .. string.format("%.2f", abs / 1e9) .. "B"    -- Billion
+    elseif abs >= 1e6 then
+        return sign .. string.format("%.2f", abs / 1e6) .. "M"    -- Million
+    elseif abs >= 1e3 then
+        return sign .. string.format("%.2f", abs / 1e3) .. "K"    -- Thousand
+    else
+        return sign .. string.format("%.2f", abs)
+    end
+end
+
+-- Crear labels para Strength
+local strengthLabels = {
+    status = strengthFolder:AddLabel("Status: Iniciando..."),
+    perMinute = strengthFolder:AddLabel("Per Minute: -"),
+    perHour = strengthFolder:AddLabel("Per Hour: -"),
+    perDay = strengthFolder:AddLabel("Per Day: -"),
+    perWeek = strengthFolder:AddLabel("Per Week: -"),
+    perMonth = strengthFolder:AddLabel("Per Month: -")
+}
+
+-- Crear labels para Durability
+local durabilityLabels = {
+    status = durabilityFolder:AddLabel("Status: Iniciando..."),
+    perMinute = durabilityFolder:AddLabel("Per Minute: -"),
+    perHour = durabilityFolder:AddLabel("Per Hour: -"),
+    perDay = durabilityFolder:AddLabel("Per Day: -"),
+    perWeek = durabilityFolder:AddLabel("Per Week: -"),
+    perMonth = durabilityFolder:AddLabel("Per Month: -")
+}
+
+-- Crear labels para Rebirths
+local rebirthsLabels = {
+    status = rebirthsFolder:AddLabel("Status: Iniciando..."),
+    perMinute = rebirthsFolder:AddLabel("Per Minute: -"),
+    perHour = rebirthsFolder:AddLabel("Per Hour: -"),
+    perDay = rebirthsFolder:AddLabel("Per Day: -"),
+    perWeek = rebirthsFolder:AddLabel("Per Week: -"),
+    perMonth = rebirthsFolder:AddLabel("Per Month: -")
+}
+
+-- Crear labels para Kills
+local killsLabels = {
+    status = killsFolder:AddLabel("Status: Iniciando..."),
+    perMinute = killsFolder:AddLabel("Per Minute: -"),
+    perHour = killsFolder:AddLabel("Per Hour: -"),
+    perDay = killsFolder:AddLabel("Per Day: -"),
+    perWeek = killsFolder:AddLabel("Per Week: -"),
+    perMonth = killsFolder:AddLabel("Per Month: -")
+}
+
+-- Función para actualizar labels de una estadística
+local function updateLabels(labels, rate, statName)
+    local currentTime = tick()
+    local startTime = measurementStartTime[statName]
+    
+    if startTime == 0 then
+        labels.status.Text = "Status: Esperando inicio automático..."
+        return
+    end
+    
+    local timeElapsed = currentTime - startTime
+    
+    if timeElapsed < 60 then
+        local remaining = 60 - timeElapsed
+        labels.status.Text = "Status: Midiendo... " .. math.ceil(remaining) .. "s"
+        labels.perMinute.Text = "Per Minute: Calculando..."
+        labels.perHour.Text = "Per Hour: Calculando..."
+        labels.perDay.Text = "Per Day: Calculando..."
+        labels.perWeek.Text = "Per Week: Calculando..."
+        labels.perMonth.Text = "Per Month: Calculando..."
+    else
+        labels.status.Text = "Status:  Activo"
+        
+        local perMinute = rate
+        local perHour = rate * 60
+        local perDay = rate * 60 * 24
+        local perWeek = rate * 60 * 24 * 7
+        local perMonth = rate * 60 * 24 * 30
+        
+        labels.perMinute.Text = "Per Minute: " .. formatNumber(perMinute)
+        labels.perHour.Text = "Per Hour: " .. formatNumber(perHour)
+        labels.perDay.Text = "Per Day: " .. formatNumber(perDay)
+        labels.perWeek.Text = "Per Week: " .. formatNumber(perWeek)
+        labels.perMonth.Text = "Per Month: " .. formatNumber(perMonth)
+    end
+end
+
+-- Función para inicializar medición automáticamente
+local function initializeMeasurement()
+    local currentTime = tick()
+    
+    for statName, _ in pairs(measurementStartTime) do
+        measurementStartTime[statName] = currentTime
+        previousValues[statName] = getCurrentValue(statName)
+    end
+    
+    print(" Calculator iniciado automáticamente")
+end
+
+-- Función para reiniciar todo
+local function restartAll()
+    initializeMeasurement()
+    for statName, _ in pairs(rates) do
+        rates[statName] = 0
+    end
+    print(" Calculator reiniciado")
+end
+
+-- Función principal de cálculo
+local function calculateRates()
+    local currentTime = tick()
+    
+    for statName, startTime in pairs(measurementStartTime) do
+        if startTime ~= 0 then
+            local timeElapsed = currentTime - startTime
+            
+            if timeElapsed >= 60 then
+                local currentValue = getCurrentValue(statName)
+                local previousValue = previousValues[statName]
+                local difference = currentValue - previousValue
+                
+                -- Calcular rate por minuto
+                rates[statName] = (difference / timeElapsed) * 60
+            end
+        end
+    end
+    
+    -- Actualizar todas las labels
+    updateLabels(strengthLabels, rates.Strength, "Strength")
+    updateLabels(durabilityLabels, rates.Durability, "Durability")
+    updateLabels(rebirthsLabels, rates.Rebirths, "Rebirths")
+    updateLabels(killsLabels, rates.Kills, "Kills")
+end
+
+-- Botón de reinicio
+Calculator:AddButton(" Reiniciar Calculator", function()
+    restartAll()
+end)
+
+-- Inicializar automáticamente
+task.spawn(function()
+    task.wait(2) -- Esperar a que cargue todo
+    initializeMeasurement()
+end)
+
+-- Loop principal
+task.spawn(function()
+    while true do
+        calculateRates()
+        task.wait(1)
+    end
+end)
+
+print("📊 Calculator cargado - Iniciará automáticamente en 2 segundos")
 
 creditsTab:AddLabel("╭──────────────────────────╮")
 creditsTab:AddLabel(" Script hecho por Isabella")
