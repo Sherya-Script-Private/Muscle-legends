@@ -313,6 +313,7 @@ infinitePackToggle = Farm:AddSwitch("Pack Farm | Infinite", function(bool)
     end
 end)
 
+Farm:AddLabel("-----Fast Strength No rebirth-----")
 fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
     fastStrength = bool
 
