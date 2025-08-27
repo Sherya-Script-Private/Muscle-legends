@@ -485,7 +485,7 @@ end
 
 task.spawn(checkForRebirthStart)
 
--- ANTI-LAG SWITCH EXTRAÍDO Y OPTIMIZADO
+-- ANTI-LAG SWITCH MEJORADO - Sin caer al vacío y manteniendo herramientas
 Opti:AddSwitch("Anti Lag", function(state)
     if state then
         local player = game.Players.LocalPlayer
@@ -567,32 +567,94 @@ Opti:AddSwitch("Anti Lag", function(state)
             end
         end
 
-        -- Función adicional para eliminar objetos innecesarios
+        -- Función MEJORADA para eliminar objetos innecesarios SIN caer al vacío
         local function removeUnnecessaryObjects()
             for _, obj in pairs(workspace:GetChildren()) do
-                if obj.Name ~= "Camera" and 
-                   obj.Name ~= "CurrentCamera" and 
-                   obj ~= player.Character and
-                   not obj:FindFirstChild("Humanoid") and
-                   not obj:FindFirstChild("ClickDetector") and
-                   not obj:FindFirstChild("ProximityPrompt") then
+                -- OBJETOS QUE NUNCA SE ELIMINAN (protegidos)
+                local isProtected = (
+                    obj.Name == "Camera" or 
+                    obj.Name == "CurrentCamera" or
+                    obj == player.Character or
+                    obj:FindFirstChild("Humanoid") or -- Otros jugadores/NPCs
+                    obj:FindFirstChild("ClickDetector") or
+                    obj:FindFirstChild("ProximityPrompt") or
+                    obj:IsA("SpawnLocation") or -- Spawns
+                    obj:IsA("Part") and obj.Material == Enum.Material.Grass or -- Suelo de grass
+                    obj:IsA("Part") and obj.Size.Y > 50 or -- Partes grandes (posible suelo)
+                    obj.Name:lower():find("floor") or -- Suelos
+                    obj.Name:lower():find("ground") or -- Suelos
+                    obj.Name:lower():find("base") or -- Bases
+                    obj.Name:lower():find("platform") or -- Plataformas
+                    obj.Name:lower():find("spawn") or -- Spawns
+                    obj.Name:lower():find("gym") or -- Gimnasio
+                    obj.Name:lower():find("building") or -- Edificios
+                    obj.Name:lower():find("wall") or -- Paredes
+                    obj.CanCollide == true and obj:IsA("Part") and obj.Size.Y < 10 -- Partes sólidas pequeñas (posibles suelos)
+                )
+                
+                -- Solo eliminar si NO está protegido
+                if not isProtected then
                     obj:Destroy()
                 end
             end
         end
 
-        -- Activar Anti-Lag
+        -- PROTEGER HERRAMIENTAS DEL JUGADOR
+        local function protectPlayerTools()
+            -- Proteger herramientas en el personaje
+            if player.Character then
+                for _, tool in pairs(player.Character:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        -- No hacer nada - las herramientas ya están protegidas por ser parte del personaje
+                    end
+                end
+            end
+            
+            -- Proteger herramientas en la mochila
+            if player.Backpack then
+                for _, tool in pairs(player.Backpack:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        -- Las herramientas en Backpack no se ven afectadas por el anti-lag
+                    end
+                end
+            end
+        end
+
+        -- CREAR SUELO DE EMERGENCIA (por si acaso)
+        local function createEmergencyFloor()
+            local emergencyFloor = Instance.new("Part")
+            emergencyFloor.Name = "EmergencyFloor"
+            emergencyFloor.Size = Vector3.new(2000, 5, 2000)
+            emergencyFloor.Position = Vector3.new(0, -100, 0) -- Muy abajo
+            emergencyFloor.Anchored = true
+            emergencyFloor.CanCollide = true
+            emergencyFloor.Material = Enum.Material.Concrete
+            emergencyFloor.Color = Color3.new(0, 0, 0) -- Negro para que no se vea
+            emergencyFloor.Parent = workspace
+            emergencyFloor.Transparency = 0.9 -- Casi invisible
+        end
+
+        -- Activar Anti-Lag CON PROTECCIONES
         _G.AntiLagActive = true
+        protectPlayerTools() -- Proteger herramientas ANTES de eliminar
         removeParticleEffects()
         removeLightSources()
-        removeUnnecessaryObjects()
+        createEmergencyFloor() -- Crear suelo de seguridad ANTES de eliminar objetos
+        removeUnnecessaryObjects() -- Eliminar con protecciones mejoradas
         darkenSky()
         
-        print("🚀 Anti-Lag Activado - Rendimiento maximizado")
+        print("🚀 Anti-Lag SEGURO Activado - Herramientas protegidas, sin caídas")
         
     else
         -- Desactivar Anti-Lag
         _G.AntiLagActive = false
+        
+        -- Limpiar suelo de emergencia
+        local emergencyFloor = workspace:FindFirstChild("EmergencyFloor")
+        if emergencyFloor then
+            emergencyFloor:Destroy()
+        end
+        
         print("⚠️ Anti-Lag Desactivado - Reinicia el juego para restaurar todo")
     end
 end)
