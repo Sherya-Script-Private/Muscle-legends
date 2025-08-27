@@ -8,57 +8,30 @@ local Window = Library:CreateWindow{
     TabWidth = 160,
     Size = UDim2.fromOffset(400, 400),
     Acrylic = true,
-    Theme = "Amethyst Dark",
+    Theme = "AmethystDark",
     MinimizeKey = Enum.KeyCode.RightControl
 }
 
 local Tabs = {
-    Main = Window:CreateTab{
-        Title = "Main",
-        Icon = "house"
-    },
-    Farm = Window:CreateTab{
-        Title = "Farm",
-        Icon = "wheat"
-    },
-    Misc = Window:CreateTab{
-        Title = "Misc",
-        Icon = "settings"
-    },
-    Pets = Window:CreateTab{
-        Title = "Pets",
-        Icon = "heart"
-    },
-    Stats = Window:CreateTab{
-        Title = "Stats",
-        Icon = "trending-up"
-    },
-    Calculator = Window:CreateTab{
-        Title = "Calculator",
-        Icon = "calculator"
-    },
-    Killer = Window:CreateTab{
-        Title = "Killer",
-        Icon = "sword"
-    },
-    Teleport = Window:CreateTab{
-        Title = "Teleport",
-        Icon = "zap"
-    },
-    Credits = Window:CreateTab{
-        Title = "Credits",
-        Icon = "users"
-    }
+    Main = Window:CreateTab{ Title = "Main", Icon = "house" },
+    Farm = Window:CreateTab{ Title = "Farm", Icon = "wheat" },
+    Misc = Window:CreateTab{ Title = "Misc", Icon = "settings" },
+    Pets = Window:CreateTab{ Title = "Pets", Icon = "heart" },
+    Stats = Window:CreateTab{ Title = "Stats", Icon = "trending-up" },
+    Calculator = Window:CreateTab{ Title = "Calculator", Icon = "calculator" },
+    Killer = Window:CreateTab{ Title = "Killer", Icon = "sword" },
+    Teleport = Window:CreateTab{ Title = "Teleport", Icon = "zap" },
+    Credits = Window:CreateTab{ Title = "Credits", Icon = "users" }
 }
 
--- ==================== MAIN TAB CONTENT ====================
-
--- Crear sección para Auto Brawls en Main
+----------------------------------------------------
+-- =================== MAIN TAB ===================
+----------------------------------------------------
 Tabs.Main:CreateSection("Auto Brawls")
 
--- God Mode Brawl Toggle
+-- God Mode Brawl
 local godModeToggle = false
-local godModeToggleElement = Tabs.Main:CreateToggle{
+Tabs.Main:AddToggle({
     Title = "God Mode (Brawl)",
     Description = "Activa el modo dios en brawls",
     Default = false,
@@ -68,16 +41,15 @@ local godModeToggleElement = Tabs.Main:CreateToggle{
             task.spawn(function()
                 while godModeToggle do
                     game:GetService("ReplicatedStorage").rEvents.brawlEvent:FireServer("joinBrawl")
-                    task.wait(0)
+                    task.wait()
                 end
             end)
         end
     end
-}
+})
 
--- Auto Win Brawls Toggle
 local Players = game:GetService("Players")
-Tabs.Main:CreateToggle{
+Tabs.Main:AddToggle({
     Title = "Auto Win Brawls",
     Description = "Gana automáticamente los brawls",
     Default = false,
@@ -200,10 +172,10 @@ Tabs.Main:CreateToggle{
             end)
         end
     end
-}
+})
 
--- Auto Join Brawls Toggle
-Tabs.Main:CreateToggle{
+-- Auto Join Brawls
+Tabs.Main:AddToggle({
     Title = "Auto Join Brawls",
     Description = "Une automáticamente a los brawls",
     Default = false,
@@ -212,276 +184,155 @@ Tabs.Main:CreateToggle{
         if bool then
             task.spawn(function()
                 while getgenv().autoJoinBrawl and task.wait(0.5) do
-                    if not getgenv().autoJoinBrawl then break end
-                    pcall(function()
-                        if game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
-                            game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
-                            game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
-                        end
-                    end)
+                    if game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
+                        game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
+                        game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
+                    end
                 end
             end)
         end
     end
-}
+})
 
--- ==================== JUNGLE GYM SECTION ====================
-
--- Cache services for faster access
+----------------------------------------------------
+-- ================ JUNGLE GYM ====================
+----------------------------------------------------
 local VIM = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Crear sección para Jungle Gym en Main
 Tabs.Main:CreateSection("Jungle Gym")
 
--- Helper functions for Jungle Gym
 local function pressE()
-    VIM:SendKeyEvent(true, "E", false, game)
+    VIM:SendKeyEvent(true, Enum.KeyCode.E, false, game)
     task.wait(0.1)
-    VIM:SendKeyEvent(false, "E", false, game)
+    VIM:SendKeyEvent(false, Enum.KeyCode.E, false, game)
 end
 
 local function autoLift()
     while getgenv().working do
         LocalPlayer.muscleEvent:FireServer("rep")
-        task.wait() -- More efficient than task.wait(0) or task.wait(small number)
+        task.wait()
     end
 end
 
-local function teleportAndStart(machineName, position)
+local function teleportAndStart(position)
     local character = LocalPlayer.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
         character.HumanoidRootPart.CFrame = position
         task.wait(0.1)
         pressE()
-        task.spawn(autoLift) -- Use task.spawn to prevent UI freezing
+        task.spawn(autoLift)
     end
 end
 
--- Jungle Gym Bench Press
-Tabs.Main:CreateToggle{
+-- Jungle toggles
+Tabs.Main:AddToggle({
     Title = "Jungle Bench Press",
-    Description = "Auto ejercicio en Bench Press del Jungle Gym",
     Default = false,
     Callback = function(bool)
-        if getgenv().working and not bool then
-            getgenv().working = false
-            return
-        end
-        
         getgenv().working = bool
-        if bool then
-            teleportAndStart("Bench Press", CFrame.new(-8173, 64, 1898))
-        end
+        if bool then teleportAndStart(CFrame.new(-8173, 64, 1898)) end
     end
-}
+})
 
--- Jungle Gym Squat
-Tabs.Main:CreateToggle{
+Tabs.Main:AddToggle({
     Title = "Jungle Squat",
-    Description = "Auto ejercicio en Squat del Jungle Gym",
     Default = false,
     Callback = function(bool)
-        if getgenv().working and not bool then
-            getgenv().working = false
-            return
-        end
-        
         getgenv().working = bool
-        if bool then
-            teleportAndStart("Squat", CFrame.new(-8352, 34, 2878))
-        end
+        if bool then teleportAndStart(CFrame.new(-8352, 34, 2878)) end
     end
-}
+})
 
--- Jungle Gym Pull Up
-Tabs.Main:CreateToggle{
+Tabs.Main:AddToggle({
     Title = "Jungle Pull Ups",
-    Description = "Auto ejercicio en Pull Ups del Jungle Gym",
     Default = false,
     Callback = function(bool)
-        if getgenv().working and not bool then
-            getgenv().working = false
-            return
-        end
-        
         getgenv().working = bool
-        if bool then
-            teleportAndStart("Pull Up", CFrame.new(-8666, 34, 2070))
-        end
+        if bool then teleportAndStart(CFrame.new(-8666, 34, 2070)) end
     end
-}
+})
 
--- Jungle Gym Boulder
-Tabs.Main:CreateToggle{
+Tabs.Main:AddToggle({
     Title = "Jungle Boulder",
-    Description = "Auto ejercicio en Boulder del Jungle Gym",
     Default = false,
     Callback = function(bool)
-        if getgenv().working and not bool then
-            getgenv().working = false
-            return
-        end
-        
         getgenv().working = bool
-        if bool then
-            teleportAndStart("Boulder", CFrame.new(-8621, 34, 2684))
-        end
+        if bool then teleportAndStart(CFrame.new(-8621, 34, 2684)) end
     end
-}
+})
 
--- ==================== AUTO GYMS SECTION ====================
-
--- Crear sección para Auto Gyms en Main
+----------------------------------------------------
+-- ================ AUTO GYMS =====================
+----------------------------------------------------
 Tabs.Main:CreateSection("Auto Gyms")
 
--- Workout positions data
 local workoutPositions = {
     ["Bench Press"] = {
-        ["Eternal Gym"] = CFrame.new(-7176.19141, 45.394104, -1106.31421),
-        ["Legend Gym"] = CFrame.new(4111.91748, 1020.46674, -3799.97217),
-        ["Muscle King Gym"] = CFrame.new(-8590.06152, 46.0167427, -6043.34717)
+        ["Eternal Gym"] = CFrame.new(-7176, 45, -1106),
+        ["Legend Gym"] = CFrame.new(4112, 1020, -3800),
+        ["Muscle King Gym"] = CFrame.new(-8590, 46, -6043)
     },
     ["Squat"] = {
-        ["Eternal Gym"] = CFrame.new(-7176.19141, 45.394104, -1106.31421),
-        ["Legend Gym"] = CFrame.new(4304.99023, 987.829956, -4124.2334),
-        ["Muscle King Gym"] = CFrame.new(-8940.12402, 13.1642084, -5699.13477)
+        ["Eternal Gym"] = CFrame.new(-7176, 45, -1106),
+        ["Legend Gym"] = CFrame.new(4305, 988, -4124),
+        ["Muscle King Gym"] = CFrame.new(-8940, 13, -5699)
     },
     ["Deadlift"] = {
-        ["Eternal Gym"] = CFrame.new(-7176.19141, 45.394104, -1106.31421),
-        ["Legend Gym"] = CFrame.new(4304.99023, 987.829956, -4124.2334),
-        ["Muscle King Gym"] = CFrame.new(-8940.12402, 13.1642084, -5699.13477)
+        ["Eternal Gym"] = CFrame.new(-7176, 45, -1106),
+        ["Legend Gym"] = CFrame.new(4305, 988, -4124),
+        ["Muscle King Gym"] = CFrame.new(-8940, 13, -5699)
     },
     ["Pull Up"] = {
-        ["Eternal Gym"] = CFrame.new(-7176.19141, 45.394104, -1106.31421),
-        ["Legend Gym"] = CFrame.new(4304.99023, 987.829956, -4124.2334),
-        ["Muscle King Gym"] = CFrame.new(-8940.12402, 13.1642084, -5699.13477)
+        ["Eternal Gym"] = CFrame.new(-7176, 45, -1106),
+        ["Legend Gym"] = CFrame.new(4305, 988, -4124),
+        ["Muscle King Gym"] = CFrame.new(-8940, 13, -5699)
     }
 }
 
--- Workout types
-local workoutTypes = {
-    "Bench Press",
-    "Squat",
-    "Deadlift",
-    "Pull Up"
-}
+local workoutTypes = { "Bench Press", "Squat", "Deadlift", "Pull Up" }
+local gymLocations = { "Eternal Gym", "Legend Gym", "Muscle King Gym" }
 
--- Gym locations
-local gymLocations = {
-    "Eternal Gym",
-    "Legend Gym",
-    "Muscle King Gym"
-}
-
--- Spanish translations for workout types
-local workoutTranslations = {
-    ["Bench Press"] = "Bench Press",
-    ["Squat"] = "Squat",
-    ["Deadlift"] = "Dead Lift",
-    ["Pull Up"] = "Pull Up"
-}
-
--- Store references to toggle objects and selected gyms
-local gymToggles = {}
 local selectedGyms = {}
-
--- Initialize selected gyms
 for _, workoutType in ipairs(workoutTypes) do
-    selectedGyms[workoutType] = gymLocations[1] -- Default to first gym
+    selectedGyms[workoutType] = gymLocations[1]
 end
 
--- Create dropdowns and toggles for each workout type
+local gymToggles = {}
+
 for _, workoutType in ipairs(workoutTypes) do
-    local spanishWorkoutName = workoutTranslations[workoutType]
-    
-    -- Create dropdown for gym selection
-    local gymDropdown = Tabs.Main:CreateDropdown{
-        Title = spanishWorkoutName .. " - Gimnasio",
-        Description = "Selecciona el gimnasio para " .. spanishWorkoutName,
+    Tabs.Main:AddDropdown({
+        Title = workoutType .. " - Gimnasio",
         Values = gymLocations,
-        Multi = false,
         Default = 1,
         Callback = function(Value)
             selectedGyms[workoutType] = Value
-            _G["selected" .. string.gsub(workoutType, " ", "") .. "Gym"] = Value
         end
-    }
-    
-    -- Create toggle for workout
-    local workoutToggle = Tabs.Main:CreateToggle{
-        Title = spanishWorkoutName,
-        Description = "Auto " .. spanishWorkoutName .. " en el gimnasio seleccionado",
+    })
+
+    gymToggles[workoutType] = Tabs.Main:AddToggle({
+        Title = workoutType,
         Default = false,
         Callback = function(bool)
             getgenv().workingGym = bool
-            getgenv().currentWorkoutType = workoutType
-            
             if bool then
-                local selectedGym = selectedGyms[workoutType] or gymLocations[1]
-                
-                -- Make sure we have a valid position
-                if workoutPositions[workoutType] and workoutPositions[workoutType][selectedGym] then
-                    -- Stop any other workout that might be running
-                    for otherType, otherToggle in pairs(gymToggles) do
-                        if otherType ~= workoutType and otherToggle then
-                            otherToggle:SetValue(false)
-                        end
-                    end
-                    
-                    -- Start the workout (assuming teleportAndStart function exists from previous code)
-                    if teleportAndStart then
-                        teleportAndStart(workoutType, workoutPositions[workoutType][selectedGym])
-                    else
-                        -- Fallback if teleportAndStart doesn't exist
-                        local character = LocalPlayer.Character
-                        if character and character:FindFirstChild("HumanoidRootPart") then
-                            character.HumanoidRootPart.CFrame = workoutPositions[workoutType][selectedGym]
-                            task.wait(0.1)
-                            -- Simulate E key press
-                            if VIM then
-                                VIM:SendKeyEvent(true, "E", false, game)
-                                task.wait(0.1)
-                                VIM:SendKeyEvent(false, "E", false, game)
-                            end
-                            -- Start auto lift
-                            task.spawn(function()
-                                while getgenv().workingGym do
-                                    LocalPlayer.muscleEvent:FireServer("rep")
-                                    task.wait()
-                                end
-                            end)
-                        end
-                    end
-                else
-                    -- Notify user if position is not found
-                    game:GetService("StarterGui"):SetCore("SendNotification", {
-                        Title = "Error",
-                        Text = "Position not found for " .. workoutType .. " in " .. selectedGym,
-                        Duration = 5
-                    })
+                local selectedGym = selectedGyms[workoutType]
+                local pos = workoutPositions[workoutType][selectedGym]
+                if pos then
+                    teleportAndStart(pos)
                 end
             end
         end
-    }
-    
-    -- Store reference to toggle
-    gymToggles[workoutType] = workoutToggle
+    })
 end
 
--- Add a button to stop all gym workouts
-Tabs.Main:CreateButton{
+Tabs.Main:AddButton({
     Title = "Stop All Gym Workouts",
-    Description = "Detiene todos los entrenamientos activos",
     Callback = function()
         getgenv().workingGym = false
         for _, toggle in pairs(gymToggles) do
             toggle:SetValue(false)
         end
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Gym Workouts",
-            Text = "All gym workouts stopped",
-            Duration = 3
-        })
     end
-}
+})
