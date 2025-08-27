@@ -485,155 +485,117 @@ end
 
 task.spawn(checkForRebirthStart)
 
--- ANTI-LAG OP CORREGIDO
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-local StarterGui = game:GetService("StarterGui")
-local RunService = game:GetService("RunService")
+-- ANTI-LAG SWITCH EXTRAÍDO Y OPTIMIZADO
+Opti:AddSwitch("Anti Lag", function(state)
+    if state then
+        local player = game.Players.LocalPlayer
+        local playerGui = player:WaitForChild("PlayerGui")
+        local lighting = game:GetService("Lighting")
 
-local antiLagActive = false
-local blackScreenGui = nil
-
-local function createBlackScreen()
-    -- Crear ScreenGui para pantalla negra
-    blackScreenGui = Instance.new("ScreenGui")
-    blackScreenGui.Name = "AntiLagBlackScreen"
-    blackScreenGui.ResetOnSpawn = false
-    blackScreenGui.IgnoreGuiInset = true
-    
-    local blackFrame = Instance.new("Frame")
-    blackFrame.Name = "BlackFrame"
-    blackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    blackFrame.BorderSizePixel = 0
-    blackFrame.Size = UDim2.new(1, 0, 1, 0)
-    blackFrame.Position = UDim2.new(0, 0, 0, 0)
-    blackFrame.ZIndex = -1000 -- Mantener al fondo para ver la UI
-    blackFrame.Parent = blackScreenGui
-    
-    blackScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-    print("Pantalla negra activada")
-end
-
-local function removeBlackScreen()
-    if blackScreenGui then
-        blackScreenGui:Destroy()
-        blackScreenGui = nil
-        print("Pantalla negra desactivada")
-    end
-end
-
-local function optimizeEverything()
-    pcall(function()
-        -- Eliminar todos los efectos visuales del workspace
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            if obj:IsA("ParticleEmitter") or obj:IsA("Fire") or obj:IsA("Smoke") or 
-               obj:IsA("Sparkles") or obj:IsA("Explosion") or obj:IsA("Trail") or 
-               obj:IsA("Beam") or obj:IsA("PointLight") or obj:IsA("SpotLight") or
-               obj:IsA("SurfaceLight") or obj:IsA("Decal") or obj:IsA("Texture") or
-               obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") then
-                obj:Destroy()
+        -- Eliminar todas las GUIs excepto las del script
+        for _, gui in pairs(playerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") and gui.Name ~= "Alejandro Farm|Private" then
+                gui:Destroy()
             end
         end
-        
-        -- Optimizar materiales de todas las partes
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                obj.Material = Enum.Material.Plastic
-                obj.Reflectance = 0
-                obj.TopSurface = Enum.SurfaceType.Smooth
-                obj.BottomSurface = Enum.SurfaceType.Smooth
-                
-                -- Simplificar MeshParts
-                if obj:IsA("MeshPart") then
-                    obj.RenderFidelity = Enum.RenderFidelity.Performance
+
+        local function darkenSky()
+            -- Eliminar cielos existentes
+            for _, v in pairs(lighting:GetChildren()) do
+                if v:IsA("Sky") then
+                    v:Destroy()
+                end
+            end
+
+            -- Crear cielo completamente negro
+            local darkSky = Instance.new("Sky")
+            darkSky.Name = "DarkSky"
+            darkSky.SkyboxBk = "rbxassetid://0"
+            darkSky.SkyboxDn = "rbxassetid://0"
+            darkSky.SkyboxFt = "rbxassetid://0"
+            darkSky.SkyboxLf = "rbxassetid://0"
+            darkSky.SkyboxRt = "rbxassetid://0"
+            darkSky.SkyboxUp = "rbxassetid://0"
+            darkSky.Parent = lighting
+
+            -- Configurar iluminación completamente negra
+            lighting.Brightness = 0
+            lighting.ClockTime = 0
+            lighting.TimeOfDay = "00:00:00"
+            lighting.OutdoorAmbient = Color3.new(0, 0, 0)
+            lighting.Ambient = Color3.new(0, 0, 0)
+            lighting.FogColor = Color3.new(0, 0, 0)
+            lighting.FogEnd = 100
+
+            -- Mantener configuración negra permanentemente
+            task.spawn(function()
+                while _G.AntiLagActive do
+                    task.wait(5)
+                    if not lighting:FindFirstChild("DarkSky") then
+                        darkSky:Clone().Parent = lighting
+                    end
+                    lighting.Brightness = 0
+                    lighting.ClockTime = 0
+                    lighting.OutdoorAmbient = Color3.new(0, 0, 0)
+                    lighting.Ambient = Color3.new(0, 0, 0)
+                    lighting.FogColor = Color3.new(0, 0, 0)
+                    lighting.FogEnd = 100
+                end
+            end)
+        end
+
+        local function removeParticleEffects()
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or 
+                   obj:IsA("Trail") or 
+                   obj:IsA("Beam") or 
+                   obj:IsA("Fire") or 
+                   obj:IsA("Smoke") or 
+                   obj:IsA("Sparkles") then
+                    obj:Destroy()
                 end
             end
         end
-        
-        -- Optimizar iluminación drásticamente
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 100
-        Lighting.FogStart = 0
-        Lighting.Technology = Enum.Technology.Legacy
-        Lighting.Brightness = 1
-        Lighting.Ambient = Color3.fromRGB(128, 128, 128)
-        
-        -- Eliminar todos los efectos de iluminación
-        for _, effect in pairs(Lighting:GetChildren()) do
-            if effect:IsA("PostEffect") or effect:IsA("Atmosphere") or 
-               effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or
-               effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") then
-                effect:Destroy()
-            end
-        end
-        
-        -- Configuraciones de rendimiento extremas
-        settings().Rendering.QualityLevel = 1
-        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
-        
-        -- Eliminar sonidos del workspace
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            if obj:IsA("Sound") then
-                obj:Destroy()
-            end
-        end
-        
-        print("Optimización extrema aplicada")
-    end)
-end
 
--- BOTÓN ÚNICO ANTI-LAG OP
-Opti:AddSwitch("Anti-Lag OP (Todo en Uno)", function(Value)
-    antiLagActive = Value
-    
-    if Value then
-        -- Activar todo
-        StarterGui:SetCore("SendNotification", {
-            Title = "Anti-Lag OP";
-            Text = "🟢 Activando optimización extrema...";
-            Duration = 3;
-        })
-        
-        -- Aplicar optimizaciones
-        optimizeEverything()
-        
-        -- Activar pantalla negra
-        createBlackScreen()
-        
-        -- Limpieza automática cada 30 segundos
-        task.spawn(function()
-            while antiLagActive do
-                task.wait(30)
-                if antiLagActive then
-                    optimizeEverything()
-                    print("Limpieza automática ejecutada")
+        local function removeLightSources()
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("PointLight") or 
+                   obj:IsA("SpotLight") or 
+                   obj:IsA("SurfaceLight") then
+                    obj:Destroy()
                 end
             end
-        end)
+        end
+
+        -- Función adicional para eliminar objetos innecesarios
+        local function removeUnnecessaryObjects()
+            for _, obj in pairs(workspace:GetChildren()) do
+                if obj.Name ~= "Camera" and 
+                   obj.Name ~= "CurrentCamera" and 
+                   obj ~= player.Character and
+                   not obj:FindFirstChild("Humanoid") and
+                   not obj:FindFirstChild("ClickDetector") and
+                   not obj:FindFirstChild("ProximityPrompt") then
+                    obj:Destroy()
+                end
+            end
+        end
+
+        -- Activar Anti-Lag
+        _G.AntiLagActive = true
+        removeParticleEffects()
+        removeLightSources()
+        removeUnnecessaryObjects()
+        darkenSky()
         
-        StarterGui:SetCore("SendNotification", {
-            Title = "Anti-Lag OP";
-            Text = "✅ Optimización completa activada!";
-            Duration = 4;
-        })
+        print("🚀 Anti-Lag Activado - Rendimiento maximizado")
         
     else
-        -- Desactivar
-        removeBlackScreen()
-        
-        StarterGui:SetCore("SendNotification", {
-            Title = "Anti-Lag OP";
-            Text = "🔴 Desactivado";
-            Duration = 2;
-        })
+        -- Desactivar Anti-Lag
+        _G.AntiLagActive = false
+        print("⚠️ Anti-Lag Desactivado - Reinicia el juego para restaurar todo")
     end
 end)
-
-Opti:AddLabel("💡 El Anti-Lag OP incluye:")
-Opti:AddLabel("• Pantalla negra automática")
-Opti:AddLabel("• Optimización de gráficos")
-Opti:AddLabel("• Limpieza automática cada 30s")
-Opti:AddLabel("• Eliminación de efectos visuales")
 
 -- FUNCIONES PARA FARMTAB
 local function eatProteinEgg()
@@ -969,7 +931,7 @@ Calculator:AddButton("🔄 Reset All Calculators", function()
     })
 end)
 
-Calculator:AddLabel("💡 Instrucciones:")
+Calculator:AddLabel("Instrucciones:")
 Calculator:AddLabel("1. Presiona 'Start' en la stat que quieras medir")
 Calculator:AddLabel("2. Espera 1 minuto para ver los cálculos")
 Calculator:AddLabel("3. Los valores se actualizan automáticamente")
