@@ -1132,7 +1132,7 @@ autoEquipToolsOP:AddLabel("Para hacer durabilidad y fuerza al mismo tiempo solo 
 autoEquipToolsOP:AddLabel("equipar auto punch en el folder de auto tools y cualquiera de las")
 autoEquipToolsOP:AddLabel("herramientas para combinarlo, recuerda activar fast tools y la roca que quieras")
 
-local gift = mainTab:AddFolder("  Gifs Snacks")
+local gift = farmTab:AddFolder("  Gifs Snacks")
 
 gift:AddLabel("Egg Gifter:").TextSize = 22
 
