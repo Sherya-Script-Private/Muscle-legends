@@ -316,16 +316,16 @@ end)
 
 Farm:AddLabel("-----Fast Strength-----")
 
-fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
+local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
     fastStrength = bool
 
     if bool then
-        if packFarmTarget and targetPackToggle then
+        if packFarmTarget then
             packFarmTarget = false
             targetPackToggle:Set(false)
         end
 
-        if packFarmInfinite and infinitePackToggle then
+        if packFarmInfinite then
             packFarmInfinite = false
             infinitePackToggle:Set(false)
         end
