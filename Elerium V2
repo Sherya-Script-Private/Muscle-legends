@@ -1132,6 +1132,147 @@ autoEquipToolsOP:AddLabel("Para hacer durabilidad y fuerza al mismo tiempo solo 
 autoEquipToolsOP:AddLabel("equipar auto punch en el folder de auto tools y cualquiera de las")
 autoEquipToolsOP:AddLabel("herramientas para combinarlo, recuerda activar fast tools y la roca que quieras")
 
+local gift = mainTab:AddFolder("  Gifs Snacks")
+
+gift:AddLabel("Egg Gifter:").TextSize = 22
+
+local proteinEggLabel = gift:AddLabel("Protein Eggs: 0")
+proteinEggLabel.TextSize = 20
+
+local selectedPlayer = nil
+local eggCount = 0
+
+local playerDropdown =
+    gift:AddDropdown(
+    "Choose Player",
+    function(name)
+        selectedPlayer = Players:FindFirstChild(name)
+    end
+)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= Players.LocalPlayer then
+        playerDropdown:Add(player.Name)
+    end
+end
+
+Players.PlayerAdded:Connect(
+    function(player)
+        if player ~= Players.LocalPlayer then
+            playerDropdown:Add(player.Name)
+        end
+    end
+)
+
+gift:AddTextBox(
+    "Amount",
+    function(Text)
+        eggCount = tonumber(Text)
+    end
+)
+
+gift:AddButton(
+    "Start Gifting",
+    function()
+        if selectedPlayer and eggCount and eggCount > 0 then
+            for i = 1, eggCount do
+                local args = {
+                    [1] = "giftRequest",
+                    [2] = selectedPlayer,
+                    [3] = Players.LocalPlayer.consumablesFolder:FindFirstChild("Protein Egg")
+                }
+
+                ReplicatedStorage.rEvents.giftRemote:InvokeServer(unpack(args))
+            end
+        end
+    end
+)
+
+gift:AddLabel("Shake Gifter:").TextSize = 22
+
+local tropicalShakeLabel = gift:AddLabel("Tropical Shakes: 0")
+tropicalShakeLabel.TextSize = 18
+
+local function updateItemCount()
+    local proteinEggCount = 0
+    local tropicalShakeCount = 0
+
+    local backpack = Players.LocalPlayer:WaitForChild("Backpack")
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item.Name == "Protein Egg" then
+                proteinEggCount = proteinEggCount + 1
+            elseif item.Name == "Tropical Shake" then
+                tropicalShakeCount = tropicalShakeCount + 1
+            end
+        end
+    end
+
+    proteinEggLabel.Text = "Protein Eggs: " .. proteinEggCount
+    tropicalShakeLabel.Text = "Tropical Shakes: " .. tropicalShakeCount
+end
+
+task.spawn(
+    function()
+        while true do
+            updateItemCount()
+            task.wait(0.25)
+        end
+    end
+)
+
+local selectedPlayer = nil
+local shakeCount = 0
+
+local playerDropdown =
+    gift:AddDropdown(
+    "Choose Player",
+    function(name)
+        selectedPlayer = Players:FindFirstChild(name)
+    end
+)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= Players.LocalPlayer then
+        playerDropdown:Add(player.Name)
+    end
+end
+
+Players.PlayerAdded:Connect(
+    function(player)
+        if player ~= Players.LocalPlayer then
+            playerDropdown:Add(player.Name)
+        end
+    end
+)
+
+gift:AddTextBox(
+    "Amount",
+    function(Text)
+        shakeCount = tonumber(Text)
+    end
+)
+
+gift:AddButton(
+    "Start Gifting",
+    function()
+        if selectedPlayer and shakeCount and shakeCount > 0 then
+            for i = 1, shakeCount do
+                local args = {
+                    [1] = "giftRequest",
+                    [2] = selectedPlayer,
+                    [3] = Players.LocalPlayer.consumablesFolder:FindFirstChild("Tropical Shake")
+                }
+
+                ReplicatedStorage.rEvents.giftRemote:InvokeServer(unpack(args))
+            end
+        end
+    end
+)
+
+autoEquipToolsOP:AddLabel("")
+autoEquipToolsOP:AddLabel("Note: Jungle Captain Obligatorio")
+
 -- Misc 1 Folder
 local misc1Folder = miscTab:AddFolder("  Misc 1")
 
