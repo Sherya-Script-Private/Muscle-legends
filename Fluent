@@ -31,63 +31,7 @@ local Tabs = {
     },
     Stats = Window:CreateTab{
         Title = "Stats",
-        Icon = "bar-chart-3"
-    },
-    Calculator = Window:CreateTab{
-        Title = "Calculator",
-        Icon = "calculator"
-    },
-    Killer = Window:CreateTab{
-        Title = "Killer",
-        Icon = "sword"
-    },
-    Teleport = Window:CreateTab{
-        Title = "Teleport",
-        Icon = "zap"
-    },
-    Credits = Window:CreateTab{
-        Title = "Credits",
-        Icon = "users"
-    }
-}
-
-local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
-local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
-local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
-
--- Servicios necesarios
-local Players = game:GetService("Players")
-
-local Window = Library:CreateWindow{
-    Title = "Sherya Script | Galaxy Hub",
-    SubTitle = "By Isabella",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(400, 400),
-    Acrylic = true,
-    Theme = "Amethyst Dark",
-    MinimizeKey = Enum.KeyCode.RightControl
-}
-
-local Tabs = {
-    Main = Window:CreateTab{
-        Title = "Main",
-        Icon = "house"
-    },
-    Farm = Window:CreateTab{
-        Title = "Farm",
-        Icon = "wheat"
-    },
-    Misc = Window:CreateTab{
-        Title = "Misc",
-        Icon = "settings"
-    },
-    Pets = Window:CreateTab{
-        Title = "Pets",
-        Icon = "heart"
-    },
-    Stats = Window:CreateTab{
-        Title = "Stats",
-        Icon = "bar-chart-3"
+        Icon = "trending-up"
     },
     Calculator = Window:CreateTab{
         Title = "Calculator",
@@ -114,8 +58,8 @@ Tabs.Main:CreateSection("Auto Brawls")
 
 -- God Mode Brawl Toggle
 local godModeToggle = false
-Tabs.Main:CreateToggle{
-    Title = "God Mode Brawl",
+local godModeToggleElement = Tabs.Main:CreateToggle{
+    Title = "God Mode (Brawl)",
     Description = "Activa el modo dios en brawls",
     Default = false,
     Callback = function(State)
@@ -132,6 +76,7 @@ Tabs.Main:CreateToggle{
 }
 
 -- Auto Win Brawls Toggle
+local Players = game:GetService("Players")
 Tabs.Main:CreateToggle{
     Title = "Auto Win Brawls",
     Description = "Gana automáticamente los brawls",
@@ -284,7 +229,6 @@ Tabs.Main:CreateToggle{
 
 -- Cache services for faster access
 local VIM = game:GetService("VirtualInputManager")
-local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- Crear sección para Jungle Gym en Main
