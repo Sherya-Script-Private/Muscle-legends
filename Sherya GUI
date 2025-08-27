@@ -318,26 +318,23 @@ Farm:AddLabel("-----Fast Strength-----")
 
 local fastStrengthToggle = Farm:AddSwitch("Pack Farm | Fast Strength", function(bool)
     fastStrength = bool
-
     if bool then
         if packFarmTarget then
             packFarmTarget = false
             targetPackToggle:Set(false)
         end
-
         if packFarmInfinite then
             packFarmInfinite = false
             infinitePackToggle:Set(false)
         end
-
         task.spawn(function()
             equipSpecificPacks("Swift Samurai", 8)
-
             while fastStrength do
-                for i = 1, 10 do
+                -- MÁXIMA VELOCIDAD: 300 repeticiones sin delay
+                for i = 1, 300 do
                     player.muscleEvent:FireServer("rep")
                 end
-                task.wait()
+                -- Sin task.wait() para velocidad absoluta máxima
             end
         end)
     else
