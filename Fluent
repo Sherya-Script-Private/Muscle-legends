@@ -65,312 +65,163 @@ local Tabs = {
 ----------------------------------------------------
 -- =================== MAIN TAB ===================
 ----------------------------------------------------
-Tabs.Main:CreateSection("Auto Brawls")
+local mainSection = Tabs.Main:AddSection("Auto Brawls")
 
--- God Mode Brawl
 local godModeToggle = false
-Tabs.Main:AddToggle({
+
+mainSection:AddToggle({
     Title = "God Mode (Brawl)",
-    Description = "Activa el modo dios en brawls",
     Default = false,
-    Callback = function(State)
-        godModeToggle = State
-        if State then
-            task.spawn(function()
-                while godModeToggle do
-                    game:GetService("ReplicatedStorage").rEvents.brawlEvent:FireServer("joinBrawl")
-                    task.wait()
-                end
-            end)
-        end
-    end
-})
-
-local Players = game:GetService("Players")
-Tabs.Main:AddToggle({
-    Title = "Auto Win Brawls",
-    Description = "Gana automáticamente los brawls",
-    Default = false,
-    Callback = function(bool)
-        getgenv().autoWinBrawl = bool
-
-        local function equipPunch()
-            if not getgenv().autoWinBrawl then return end
-            local character = game.Players.LocalPlayer.Character
-            if not character then return false end
-            if character:FindFirstChild("Punch") then return true end
-            local backpack = game.Players.LocalPlayer.Backpack
-            if not backpack then return false end
-            for _, tool in pairs(backpack:GetChildren()) do
-                if tool.ClassName == "Tool" and tool.Name == "Punch" then
-                    tool.Parent = character
-                    return true
-                end
+    Callback = function(Value)
+        godModeToggle = Value
+            if Value then
+                task.spawn(function()
+                    while godModeToggle do
+                        game:GetService("ReplicatedStorage").rEvents.brawlEvent:FireServer("joinBrawl")
+                        task.wait(0)
+                    end
+                end)
             end
-            return false
         end
-
-        local function isValidTarget(player)
-            if not player or not player.Parent then return false end
-            if player == Players.LocalPlayer then return false end
-            if _G.whitelistedPlayers and table.find(_G.whitelistedPlayers, player.Name) then return false end
-            local character = player.Character
-            if not character or not character.Parent then return false end
-            local humanoid = character:FindFirstChild("Humanoid")
-            if not humanoid then return false end
-            if not humanoid.Health or humanoid.Health <= 0 then return false end
-            if humanoid:GetState() == Enum.HumanoidStateType.Dead then return false end
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            if not rootPart or not rootPart.Parent then return false end
-            return true
-        end
-
-        local function isLocalPlayerReady()
-            local player = game.Players.LocalPlayer
-            if not player then return false end
-            local character = player.Character
-            if not character or not character.Parent then return false end
-            local humanoid = character:FindFirstChild("Humanoid")
-            if not humanoid or humanoid.Health <= 0 then return false end
-            local leftHand = character:FindFirstChild("LeftHand")
-            local rightHand = character:FindFirstChild("RightHand")
-            return (leftHand ~= nil or rightHand ~= nil)
-        end
-
-        local function safeTouchInterest(targetPart, localPart)
-            if not targetPart or not targetPart.Parent then return false end
-            if not localPart or not localPart.Parent then return false end
-            local success = pcall(function()
-                firetouchinterest(targetPart, localPart, 0)
-                task.wait(0.01)
-                firetouchinterest(targetPart, localPart, 1)
-            end)
-            return success
-        end
-
-        if bool then
-            -- Auto Join Loop
-            task.spawn(function()
-                while getgenv().autoWinBrawl and task.wait(0.5) do
-                    if not getgenv().autoWinBrawl then break end
-                    pcall(function()
-                        if game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
-                            game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
-                            game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
-                        end
-                    end)
-                end
-            end)
-
-            -- Auto Equip Punch Loop
-            task.spawn(function()
-                while getgenv().autoWinBrawl and task.wait(0.5) do
-                    if not getgenv().autoWinBrawl then break end
-                    equipPunch()
-                end
-            end)
-
-            -- Auto Punch Loop
-            task.spawn(function()
-                while getgenv().autoWinBrawl and task.wait(0.1) do
-                    if not getgenv().autoWinBrawl then break end
-                    if isLocalPlayerReady() and game.ReplicatedStorage.brawlInProgress.Value then
-                        local player = game.Players.LocalPlayer
-                        pcall(function() player.muscleEvent:FireServer("punch", "rightHand") end)
-                        pcall(function() player.muscleEvent:FireServer("punch", "leftHand") end)
-                    end
-                end
-            end)
-
-            -- Touch Interest Loop
-            task.spawn(function()
-                while getgenv().autoWinBrawl and task.wait(0.05) do
-                    if not getgenv().autoWinBrawl then break end
-                    if isLocalPlayerReady() and game.ReplicatedStorage.brawlInProgress.Value then
-                        local character = game.Players.LocalPlayer.Character
-                        local leftHand = character:FindFirstChild("LeftHand")
-                        local rightHand = character:FindFirstChild("RightHand")
-                        for _, player in pairs(Players:GetPlayers()) do
-                            if not getgenv().autoWinBrawl then break end
-                            pcall(function()
-                                if isValidTarget(player) then
-                                    local targetRoot = player.Character.HumanoidRootPart
-                                    if leftHand then
-                                        safeTouchInterest(targetRoot, leftHand)
-                                    end
-                                    if rightHand then
-                                        safeTouchInterest(targetRoot, rightHand)
-                                    end
-                                end
-                            end)
-                            task.wait(0.01)
-                        end
-                    end
-                end
-            end)
-        end
-    end
 })
 
--- Auto Join Brawls
-Tabs.Main:AddToggle({
-    Title = "Auto Join Brawls",
-    Description = "Une automáticamente a los brawls",
+mainSection:AddToggle({
+    Title = "Auto Win Brawls",
     Default = false,
-    Callback = function(bool)
-        getgenv().autoJoinBrawl = bool
-        if bool then
-            task.spawn(function()
-                while getgenv().autoJoinBrawl and task.wait(0.5) do
+    Callback = function(Value)
+
+        getgenv().autoWinBrawl = Value
+            local function equipPunch()
+        if not getgenv().autoWinBrawl then return end
+        local character = game.Players.LocalPlayer.Character
+        if not character then return false end
+        if character:FindFirstChild("Punch") then return true end
+        local backpack = game.Players.LocalPlayer.Backpack
+        if not backpack then return false end
+        for _, tool in pairs(backpack:GetChildren()) do
+            if tool.ClassName == "Tool" and tool.Name == "Punch" then
+                tool.Parent = character
+                return true
+            end
+        end
+        return false
+    end
+
+    local function isValidTarget(player)
+        if not player or not player.Parent then return false end
+        if player == Players.LocalPlayer then return false end
+        if _G.whitelistedPlayers and table.find(_G.whitelistedPlayers, player.Name) then return false end
+        local character = player.Character
+        if not character or not character.Parent then return false end
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return false end
+        if not humanoid.Health or humanoid.Health <= 0 then return false end
+        if humanoid:GetState() == Enum.HumanoidStateType.Dead then return false end
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart or not rootPart.Parent then return false end
+        return true
+    end
+
+    local function isLocalPlayerReady()
+        local player = game.Players.LocalPlayer
+        if not player then return false end
+        local character = player.Character
+        if not character or not character.Parent then return false end
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then return false end
+        local leftHand = character:FindFirstChild("LeftHand")
+        local rightHand = character:FindFirstChild("RightHand")
+        return (leftHand ~= nil or rightHand ~= nil)
+    end
+
+    local function safeTouchInterest(targetPart, localPart)
+        if not targetPart or not targetPart.Parent then return false end
+        if not localPart or not localPart.Parent then return false end
+        local success = pcall(function()
+            firetouchinterest(targetPart, localPart, 0)
+            task.wait(0.01)
+            firetouchinterest(targetPart, localPart, 1)
+        end)
+        return success
+    end
+
+    if Value then
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.5) do
+                if not getgenv().autoWinBrawl then break end
+                pcall(function()
                     if game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
                         game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
                         game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
                     end
-                end
-            end)
-        end
-    end
-})
+                end)
+            end
+        end)
 
-----------------------------------------------------
--- ================ JUNGLE GYM ====================
-----------------------------------------------------
-local VIM = game:GetService("VirtualInputManager")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.5) do
+                if not getgenv().autoWinBrawl then break end
+                equipPunch()
+            end
+        end)
 
-Tabs.Main:CreateSection("Jungle Gym")
-
-local function pressE()
-    VIM:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-    task.wait(0.1)
-    VIM:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-end
-
-local function autoLift()
-    while getgenv().working do
-        LocalPlayer.muscleEvent:FireServer("rep")
-        task.wait()
-    end
-end
-
-local function teleportAndStart(position)
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        character.HumanoidRootPart.CFrame = position
-        task.wait(0.1)
-        pressE()
-        task.spawn(autoLift)
-    end
-end
-
--- Jungle toggles
-Tabs.Main:AddToggle({
-    Title = "Jungle Bench Press",
-    Default = false,
-    Callback = function(bool)
-        getgenv().working = bool
-        if bool then teleportAndStart(CFrame.new(-8173, 64, 1898)) end
-    end
-})
-
-Tabs.Main:AddToggle({
-    Title = "Jungle Squat",
-    Default = false,
-    Callback = function(bool)
-        getgenv().working = bool
-        if bool then teleportAndStart(CFrame.new(-8352, 34, 2878)) end
-    end
-})
-
-Tabs.Main:AddToggle({
-    Title = "Jungle Pull Ups",
-    Default = false,
-    Callback = function(bool)
-        getgenv().working = bool
-        if bool then teleportAndStart(CFrame.new(-8666, 34, 2070)) end
-    end
-})
-
-Tabs.Main:AddToggle({
-    Title = "Jungle Boulder",
-    Default = false,
-    Callback = function(bool)
-        getgenv().working = bool
-        if bool then teleportAndStart(CFrame.new(-8621, 34, 2684)) end
-    end
-})
-
-----------------------------------------------------
--- ================ AUTO GYMS =====================
-----------------------------------------------------
-Tabs.Main:CreateSection("Auto Gyms")
-
-local workoutPositions = {
-    ["Bench Press"] = {
-        ["Eternal Gym"] = CFrame.new(-7176, 45, -1106),
-        ["Legend Gym"] = CFrame.new(4112, 1020, -3800),
-        ["Muscle King Gym"] = CFrame.new(-8590, 46, -6043)
-    },
-    ["Squat"] = {
-        ["Eternal Gym"] = CFrame.new(-7176, 45, -1106),
-        ["Legend Gym"] = CFrame.new(4305, 988, -4124),
-        ["Muscle King Gym"] = CFrame.new(-8940, 13, -5699)
-    },
-    ["Deadlift"] = {
-        ["Eternal Gym"] = CFrame.new(-7176, 45, -1106),
-        ["Legend Gym"] = CFrame.new(4305, 988, -4124),
-        ["Muscle King Gym"] = CFrame.new(-8940, 13, -5699)
-    },
-    ["Pull Up"] = {
-        ["Eternal Gym"] = CFrame.new(-7176, 45, -1106),
-        ["Legend Gym"] = CFrame.new(4305, 988, -4124),
-        ["Muscle King Gym"] = CFrame.new(-8940, 13, -5699)
-    }
-}
-
-local workoutTypes = { "Bench Press", "Squat", "Deadlift", "Pull Up" }
-local gymLocations = { "Eternal Gym", "Legend Gym", "Muscle King Gym" }
-
-local selectedGyms = {}
-for _, workoutType in ipairs(workoutTypes) do
-    selectedGyms[workoutType] = gymLocations[1]
-end
-
-local gymToggles = {}
-
-for _, workoutType in ipairs(workoutTypes) do
-    Tabs.Main:AddDropdown({
-        Title = workoutType .. " - Gimnasio",
-        Values = gymLocations,
-        Default = 1,
-        Callback = function(Value)
-            selectedGyms[workoutType] = Value
-        end
-    })
-
-    gymToggles[workoutType] = Tabs.Main:AddToggle({
-        Title = workoutType,
-        Default = false,
-        Callback = function(bool)
-            getgenv().workingGym = bool
-            if bool then
-                local selectedGym = selectedGyms[workoutType]
-                local pos = workoutPositions[workoutType][selectedGym]
-                if pos then
-                    teleportAndStart(pos)
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.1) do
+                if not getgenv().autoWinBrawl then break end
+                if isLocalPlayerReady() and game.ReplicatedStorage.brawlInProgress.Value then
+                    local player = game.Players.LocalPlayer
+                    pcall(function() player.muscleEvent:FireServer("punch", "rightHand") end)
+                    pcall(function() player.muscleEvent:FireServer("punch", "leftHand") end)
                 end
             end
-        end
-    })
-end
+        end)
 
-Tabs.Main:AddButton({
-    Title = "Stop All Gym Workouts",
-    Callback = function()
-        getgenv().workingGym = false
-        for _, toggle in pairs(gymToggles) do
-            toggle:SetValue(false)
-        end
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.05) do
+                if not getgenv().autoWinBrawl then break end
+                if isLocalPlayerReady() and game.ReplicatedStorage.brawlInProgress.Value then
+                    local character = game.Players.LocalPlayer.Character
+                    local leftHand = character:FindFirstChild("LeftHand")
+                    local rightHand = character:FindFirstChild("RightHand")
+                    for _, player in pairs(Players:GetPlayers()) do
+                        if not getgenv().autoWinBrawl then break end
+                        pcall(function()
+                            if isValidTarget(player) then
+                                local targetRoot = player.Character.HumanoidRootPart
+                                if leftHand then
+                                    safeTouchInterest(targetRoot, leftHand)
+                                end
+                                if rightHand then
+                                    safeTouchInterest(targetRoot, rightHand)
+                                end
+                            end
+                        end)
+                        task.wait(0.01)
+                    end
+                end
+            end
+        end)
     end
+end
+})
+
+mainSection:AddToggle({
+    Title = "Auto Join Brawl",
+    Default = false,
+    Callback = function(Value)
+        getgenv().autoJoinBrawl = Value
+    if bool then
+        task.spawn(function()
+            while getgenv().autoJoinBrawl and task.wait(0.5) do
+                if not getgenv().autoJoinBrawl then break end
+                pcall(function()
+                    if game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
+                        game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
+                        game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
+                    end
+                end)
+            end
+        end)
+    end
+end
 })
