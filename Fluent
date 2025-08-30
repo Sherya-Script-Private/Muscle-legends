@@ -1,47 +1,504 @@
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
-
-local Window = Library:CreateWindow({
+local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
+local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
+ 
+local Window = Library:CreateWindow{
     Title = "Sherya Script | Galaxy Hub",
     SubTitle = "By Isabella",
     TabWidth = 160,
     Size = UDim2.fromOffset(400, 400),
     Acrylic = true,
-    Theme = "Amethyst Dark",
+    Theme = "Amethyst Dark", -- Puedes cambiar a "Light" si prefieres
     MinimizeKey = Enum.KeyCode.RightControl
-})
-
-local Tabs = {
-    Main = Window:CreateTab({ Title = "Main", Icon = "house" }),
-    Farm = Window:CreateTab({ Title = "Farm", Icon = "wheat" }),
-    Misc = Window:CreateTab({ Title = "Misc", Icon = "settings" }),
-    Pets = Window:CreateTab({ Title = "Pets", Icon = "heart" }),
-    Stats = Window:CreateTab({ Title = "Stats", Icon = "trending-up" }),
-    Calculator = Window:CreateTab({ Title = "Calculator", Icon = "calculator" }),
-    Killer = Window:CreateTab({ Title = "Killer", Icon = "sword" }),
-    Teleport = Window:CreateTab({ Title = "Teleport", Icon = "zap" }),
-    Credits = Window:CreateTab({ Title = "Credits", Icon = "users" })
 }
 
-Tabs.Home:CreateLabel({
-    Text = "Auto Brawl"
-})
+-- Fluent Renewed provides ALL 1544 Lucide 0.469.0 https://lucide.dev/icons/ Icons and ALL 9072 Phosphor 2.1.0 https://phosphoricons.com/ Icons for the tabs, icons are optional
+local Tabs = {
+  Main = Window:CreateTab{
+    	Title = "Main",
+    	Icon = "house"
+    },
+    Farm = Window:CreateTab{
+        Title = "Farm",
+        Icon = "wheat"
+    },
+  	Misc = Window:CreateTab{
+        Title = "Misc",
+        Icon = "settings"
+    },
+	Pets = Window:CreateTab{
+        Title = "Pets",
+        Icon = "heart"
+    },
+  	Stats = Window:CreateTab{
+        Title = "Stats",
+        Icon = "trending-up"
+    },
+	Calculator = Window:CreateTab{
+        Title = "Calculator",
+        Icon = "calculator"
+    },
+	Killer = Window:CreateTab{
+        Title = "Killer",
+        Icon = "sword"
+    },
+	Teleport = Window:CreateTab{
+        Title = "Teleport",
+        Icon = "zap"
+    },
+    Credits = Window:CreateTab{
+        Title = "Credits",
+        Icon = "users"
+    }
+}
+local Options = Library.Options
 
-local godModeToggle = false
+Library:Notify{
+    Title = "Welcome to Galaxy Hub",
+    Content = "Galaxy Hub On Top",
+    SubContent = "The Best Script For Muscle Legends", -- Optional
+    Duration = 13 -- Set to nil to make the notification not disappear
+}
 
-Tabs.Main:CreateToggle({
-    Title = "God Mode Brawl",
-    Description = "Buen juego, ahora eres inmortal (Usa teleport)",
-    Default = false,
-    Callback = function(State)
-        godModeToggle = State
-        if State then
-            task.spawn(function()
-                while godModeToggle do
-                    game:GetService("ReplicatedStorage").rEvents.brawlEvent:FireServer("joinBrawl")
-                    task.wait(0.1) -- espera corta para no saturar
-                end
-            end)
-        end
+Tabs.Main:AddSection("Discord Server Link")
+
+Tabs.Main:CreateButton({
+    Title = "Click to Copy Link",
+    Description = "This allows you to join our Discord server and get update pings and more.",
+    Callback = function()
+        Window:Dialog({
+            Title = "Join Our Discord",
+            Content = "Would you like to copy the invite link to our Discord server?",
+            Buttons = {
+                {
+                    Title = "Confirm",
+                    Callback = function()
+                        local link = "https://discord.gg/rnDrhTZZCF"
+                        setclipboard(link)
+                        print("Copied Discord link to clipboard.")
+                    end
+                }
+            }
+        })
     end
 })
 
+Tabs.Main:AddSection("Auto Brawls")
+
+local godModeToggle = Tabs.Main:CreateToggle("godModeToggle", {
+    Title = "God Mode (Brawl)",
+    Default = false
+})
+
+godModeToggle:OnChanged(function(state)
+    godModeToggle = state
+
+    if godModeToggle then
+        task.spawn(function()
+            while godModeToggle do
+                game:GetService("ReplicatedStorage").rEvents.brawlEvent:FireServer("joinBrawl")
+                task.wait(0.1) -- pequeño delay para evitar lag
+            end
+        end)
+    end
+end)
+
+-- 🔥 Auto Win Brawls
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Toggle
+local autoWinBrawlToggle = Tabs.Main:CreateToggle("autoWinBrawl", {
+    Title = "Auto Win Brawls",
+    Default = false
+})
+
+-- Estado global
+getgenv().autoWinBrawl = false
+
+-- Función para equipar el Punch
+local function equipPunch()
+    if not getgenv().autoWinBrawl then return end
+    local character = LocalPlayer.Character
+    if not character then return false end
+    if character:FindFirstChild("Punch") then return true end
+
+    local backpack = LocalPlayer.Backpack
+    if not backpack then return false end
+
+    for _, tool in pairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name == "Punch" then
+            tool.Parent = character
+            return true
+        end
+    end
+    return false
+end
+
+-- Validación de objetivo
+local function isValidTarget(player)
+    if not player or not player.Parent then return false end
+    if player == LocalPlayer then return false end
+    if _G.whitelistedPlayers and table.find(_G.whitelistedPlayers, player.Name) then return false end
+
+    local character = player.Character
+    if not character then return false end
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid or humanoid.Health <= 0 or humanoid:GetState() == Enum.HumanoidStateType.Dead then
+        return false
+    end
+
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    return rootPart ~= nil
+end
+
+-- Validar si el jugador local está listo
+local function isLocalPlayerReady()
+    local character = LocalPlayer.Character
+    if not character then return false end
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return false end
+    return character:FindFirstChild("LeftHand") or character:FindFirstChild("RightHand")
+end
+
+-- Safe firetouchinterest
+local function safeTouchInterest(targetPart, localPart)
+    if not targetPart or not localPart then return false end
+    return pcall(function()
+        firetouchinterest(targetPart, localPart, 0)
+        task.wait(0.01)
+        firetouchinterest(targetPart, localPart, 1)
+    end)
+end
+
+-- Cuando cambia el toggle
+autoWinBrawlToggle:OnChanged(function(state)
+    getgenv().autoWinBrawl = state
+
+    if state then
+        -- Auto Join Brawl
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.5) do
+                pcall(function()
+                    if LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
+                        game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
+                        LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
+                    end
+                end)
+            end
+        end)
+
+        -- Auto Equip Punch
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.5) do
+                equipPunch()
+            end
+        end)
+
+        -- Auto Punch
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.1) do
+                if isLocalPlayerReady() and game.ReplicatedStorage.brawlInProgress.Value then
+                    pcall(function() LocalPlayer.muscleEvent:FireServer("punch", "rightHand") end)
+                    pcall(function() LocalPlayer.muscleEvent:FireServer("punch", "leftHand") end)
+                end
+            end
+        end)
+
+        -- Auto Hit Enemies
+        task.spawn(function()
+            while getgenv().autoWinBrawl and task.wait(0.05) do
+                if isLocalPlayerReady() and game.ReplicatedStorage.brawlInProgress.Value then
+                    local character = LocalPlayer.Character
+                    local leftHand = character:FindFirstChild("LeftHand")
+                    local rightHand = character:FindFirstChild("RightHand")
+
+                    for _, player in pairs(Players:GetPlayers()) do
+                        if not getgenv().autoWinBrawl then break end
+                        if isValidTarget(player) then
+                            local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+                            if leftHand then safeTouchInterest(targetRoot, leftHand) end
+                            if rightHand then safeTouchInterest(targetRoot, rightHand) end
+                        end
+                        task.wait(0.01)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- 🔥 Auto Join Brawl
+local autoJoinBrawl = Tabs.Main:CreateToggle("autoJoinBrawl", {
+    Title = "Auto Join Brawl",
+    Default = false
+})
+
+-- Estado global
+getgenv().autoJoinBrawl = false
+
+-- Cuando cambie el toggle
+autoJoinBrawl:OnChanged(function(state)
+    getgenv().autoJoinBrawl = state
+
+    if state then
+        task.spawn(function()
+            while getgenv().autoJoinBrawl and task.wait(0.5) do
+                pcall(function()
+                    if game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible then
+                        game.ReplicatedStorage.rEvents.brawlEvent:FireServer("joinBrawl")
+                        game.Players.LocalPlayer.PlayerGui.gameGui.brawlJoinLabel.Visible = false
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+Tabs.Main:AddSection("Jungle Gym")
+
+-- Cache services for faster access
+local VIM = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Helper functions for Jungle Gym
+local function pressE()
+    VIM:SendKeyEvent(true, "E", false, game)
+    task.wait(0.1)
+    VIM:SendKeyEvent(false, "E", false, game)
+end
+
+local function autoLift()
+    while getgenv().working do
+        LocalPlayer.muscleEvent:FireServer("rep")
+        task.wait() -- More efficient than task.wait(0) or task.wait(small number)
+    end
+end
+
+local function teleportAndStart(machineName, position)
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        character.HumanoidRootPart.CFrame = position
+        task.wait(0.1)
+        pressE()
+        task.spawn(autoLift) -- Use task.spawn to prevent UI freezing
+    end
+end
+
+-- 💪 Auto Bench Press
+local BenchPress = Tabs.Main:CreateToggle("autoBenchPress", {
+    Title = "Auto Bench Press",
+    Default = false
+})
+
+-- Estado global
+getgenv().working = false
+
+-- Cuando cambie el toggle
+BenchPress:OnChanged(function(state)
+    if getgenv().working and not state then
+        -- Si estaba activo y se desactiva
+        getgenv().working = false
+        return
+    end
+
+    getgenv().working = state
+    if state then
+        -- Aquí va tu función para teletransportar y empezar el bench
+        teleportAndStart("Bench Press", CFrame.new(-8173, 64, 1898))
+    end
+end)
+
+-- 💪 Auto Squat
+local jungleSquat = Tabs.Main:CreateToggle("autoSquat", {
+    Title = "Auto Squat",
+    Default = false
+})
+
+-- Estado global
+getgenv().working = false
+
+-- Cuando cambie el toggle
+jungleSquat:OnChanged(function(state)
+    if getgenv().working and not state then
+        -- Si estaba activo y lo apagan
+        getgenv().working = false
+        return
+    end
+
+    getgenv().working = state
+    if state then
+        -- Ejecuta la función al activarse
+        teleportAndStart("Squat", CFrame.new(-8352, 34, 2878))
+    end
+end)
+
+-- 🪨 Auto Boulder
+local jungleBoulder = Tabs.Main:CreateToggle("autoBoulder", {
+    Title = "Auto Boulder",
+    Default = false
+})
+
+-- Estado global solo para Boulder
+getgenv().autoBoulder = false
+
+-- Cuando cambie el toggle
+jungleBoulder:OnChanged(function(state)
+    if getgenv().autoBoulder and not state then
+        -- Si estaba activo y lo apagan
+        getgenv().autoBoulder = false
+        return
+    end
+
+    getgenv().autoBoulder = state
+    if state then
+        -- Teletransporta y empieza el Boulder
+        teleportAndStart("Boulder", CFrame.new(-8621, 34, 2684))
+    end
+end)
+
+-- 💪 Auto Pull Up
+local junglePullUp = Tabs.Main:CreateToggle("autoPullUp", {
+    Title = "Auto Pull Up",
+    Default = false
+})
+
+-- Estado global solo para Pull Up
+getgenv().autoPullUp = false
+
+-- Cuando cambie el toggle
+junglePullUp:OnChanged(function(state)
+    if getgenv().autoPullUp and not state then
+        -- Si estaba activo y lo apagaron
+        getgenv().autoPullUp = false
+        return
+    end
+
+    getgenv().autoPullUp = state
+    if state then
+        -- Teletransporta y empieza el Pull Up
+        teleportAndStart("Pull Up", CFrame.new(-8666, 34, 2070))
+    end
+end)
+
+-- 🪨 Auto Boulder
+local jungleBoulder = Tabs.Main:CreateToggle("autoBoulder", {
+    Title = "Auto Boulder",
+    Default = false
+})
+
+-- Estado global solo para Boulder
+getgenv().autoBoulder = false
+
+-- Cuando cambie el toggle
+jungleBoulder:OnChanged(function(state)
+    if getgenv().autoBoulder and not state then
+        -- Si estaba activo y lo apagaron
+        getgenv().autoBoulder = false
+        return
+    end
+
+    getgenv().autoBoulder = state
+    if state then
+        -- Teletransporta y empieza el Boulder
+        teleportAndStart("Boulder", CFrame.new(-8621, 34, 2684))
+    end
+end)
+
+Tabs.Main:AddSection("Auto Gyms")
+
+-- 📌 Posiciones de cada ejercicio en cada gimnasio
+local workoutPositions = {
+    ["Bench Press"] = {
+        ["Eternal Gym"] = CFrame.new(-7176.19141, 45.394104, -1106.31421),
+        ["Legend Gym"] = CFrame.new(4111.91748, 1020.46674, -3799.97217),
+        ["Muscle King Gym"] = CFrame.new(-8590.06152, 46.0167427, -6043.34717)
+    },
+    ["Squat"] = {
+        ["Eternal Gym"] = CFrame.new(-7176.19141, 45.394104, -1106.31421),
+        ["Legend Gym"] = CFrame.new(4304.99023, 987.829956, -4124.2334),
+        ["Muscle King Gym"] = CFrame.new(-8940.12402, 13.1642084, -5699.13477)
+    },
+    ["Deadlift"] = {
+        ["Eternal Gym"] = CFrame.new(-7176.19141, 45.394104, -1106.31421),
+        ["Legend Gym"] = CFrame.new(4304.99023, 987.829956, -4124.2334),
+        ["Muscle King Gym"] = CFrame.new(-8940.12402, 13.1642084, -5699.13477)
+    },
+    ["Pull Up"] = {
+        ["Eternal Gym"] = CFrame.new(-7176.19141, 45.394104, -1106.31421),
+        ["Legend Gym"] = CFrame.new(4304.99023, 987.829956, -4124.2334),
+        ["Muscle King Gym"] = CFrame.new(-8940.12402, 13.1642084, -5699.13477)
+    }
+}
+
+-- Lista de ejercicios
+local workoutTypes = { "Bench Press", "Squat", "Deadlift", "Pull Up" }
+
+-- Lista de gimnasios
+local gymLocations = { "Eternal Gym", "Legend Gym", "Muscle King Gym" }
+
+-- Traducciones al español
+local workoutTranslations = {
+    ["Bench Press"] = "Bench Press",
+    ["Squat"] = "Sentadillas",
+    ["Deadlift"] = "Peso Muerto",
+    ["Pull Up"] = "Dominadas"
+}
+
+-- Guardar referencias de toggles
+local gymToggles = {}
+
+-- Crear Dropdowns y Toggles para cada ejercicio con Fluent
+for _, workoutType in ipairs(workoutTypes) do
+    local spanishWorkoutName = workoutTranslations[workoutType]
+
+    -- Crear dropdown para gimnasio
+    local dropdown = Tabs.Main:CreateDropdown(workoutType .. "GymDropdown", {
+        Title = spanishWorkoutName .. " - Gimnasio",
+        Values = gymLocations,
+        Multi = false,
+        Default = gymLocations[1]
+    })
+
+    dropdown:OnChanged(function(selected)
+        _G["selected" .. string.gsub(workoutType, " ", "") .. "Gym"] = selected
+    end)
+
+    -- Crear toggle para activar ejercicio
+    local toggle = Tabs.Main:CreateToggle(workoutType .. "GymToggle", {
+        Title = "Auto " .. spanishWorkoutName,
+        Default = false
+    })
+
+    toggle:OnChanged(function(state)
+        getgenv().workingGym = state
+        getgenv().currentWorkoutType = workoutType
+
+        if state then
+            local selectedGym = _G["selected" .. string.gsub(workoutType, " ", "") .. "Gym"] or gymLocations[1]
+
+            if workoutPositions[workoutType] and workoutPositions[workoutType][selectedGym] then
+                -- Apaga otros toggles
+                for otherType, otherToggle in pairs(gymToggles) do
+                    if otherType ~= workoutType and otherToggle then
+                        otherToggle:Set(false)
+                    end
+                end
+
+                -- Inicia el entrenamiento
+                teleportAndStart(workoutType, workoutPositions[workoutType][selectedGym])
+            else
+                -- Notificación de error
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Error",
+                    Text = "No se encontró posición para " .. workoutType .. " en " .. selectedGym,
+                    Duration = 5
+                })
+            end
+        end
+    end)
+
+    -- Guardar toggle
+    gymToggles[workoutType] = toggle
+end
