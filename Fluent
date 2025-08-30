@@ -63,8 +63,8 @@ Library:Notify{
 Tabs.Main:AddSection("Discord Server Link")
 
 Tabs.Main:CreateButton({
-    Title = "Click to Copy Link",
-    Description = "This allows you to join our Discord server and get update pings and more.",
+    Title = "Discord Server",
+    Description = "Join our Discord server for support and updates!",
     Callback = function()
         Window:Dialog({
             Title = "Join Our Discord",
@@ -87,7 +87,8 @@ Tabs.Main:AddSection("Auto Brawls")
 
 local godModeToggle = Tabs.Main:CreateToggle("godModeToggle", {
     Title = "God Mode (Brawl)",
-    Default = false
+    Default = false,
+    Description = "Good for joining brawls automatically"
 })
 
 godModeToggle:OnChanged(function(state)
@@ -110,7 +111,8 @@ local LocalPlayer = Players.LocalPlayer
 -- Toggle
 local autoWinBrawlToggle = Tabs.Main:CreateToggle("autoWinBrawl", {
     Title = "Auto Win Brawls",
-    Default = false
+    Default = false,
+    Description = "Automatically wins brawls"
 })
 
 -- Estado global
@@ -231,7 +233,8 @@ end)
 -- 🔥 Auto Join Brawl
 local autoJoinBrawl = Tabs.Main:CreateToggle("autoJoinBrawl", {
     Title = "Auto Join Brawl",
-    Default = false
+    Default = false,
+    Description = "Automatically joins brawls"
 })
 
 -- Estado global
@@ -289,7 +292,8 @@ end
 -- 💪 Auto Bench Press
 local BenchPress = Tabs.Main:CreateToggle("autoBenchPress", {
     Title = "Auto Bench Press",
-    Default = false
+    Default = false,
+    Description = "Automatically Bench Press"
 })
 
 -- Estado global
@@ -313,7 +317,8 @@ end)
 -- 💪 Auto Squat
 local jungleSquat = Tabs.Main:CreateToggle("autoSquat", {
     Title = "Auto Squat",
-    Default = false
+    Default = false,
+    Description = "Automatically Squat"
 })
 
 -- Estado global
@@ -337,7 +342,8 @@ end)
 -- 🪨 Auto Boulder
 local jungleBoulder = Tabs.Main:CreateToggle("autoBoulder", {
     Title = "Auto Boulder",
-    Default = false
+    Default = false,
+    Description = "Automatically Boulder"
 })
 
 -- Estado global solo para Boulder
@@ -361,7 +367,8 @@ end)
 -- 💪 Auto Pull Up
 local junglePullUp = Tabs.Main:CreateToggle("autoPullUp", {
     Title = "Auto Pull Up",
-    Default = false
+    Default = false,
+    Description = "Automatically Pull Up"
 })
 
 -- Estado global solo para Pull Up
@@ -385,7 +392,8 @@ end)
 -- 🪨 Auto Boulder
 local jungleBoulder = Tabs.Main:CreateToggle("autoBoulder", {
     Title = "Auto Boulder",
-    Default = false
+    Default = false,
+    Description = "Automatically Boulder"
 })
 
 -- Estado global solo para Boulder
@@ -432,13 +440,8 @@ local workoutPositions = {
     }
 }
 
--- Lista de ejercicios
+-- Ejercicios y traducciones
 local workoutTypes = { "Bench Press", "Squat", "Deadlift", "Pull Up" }
-
--- Lista de gimnasios
-local gymLocations = { "Eternal Gym", "Legend Gym", "Muscle King Gym" }
-
--- Traducciones al español
 local workoutTranslations = {
     ["Bench Press"] = "Bench Press",
     ["Squat"] = "Sentadillas",
@@ -446,59 +449,183 @@ local workoutTranslations = {
     ["Pull Up"] = "Dominadas"
 }
 
+local gymLocations = { "Eternal Gym", "Legend Gym", "Muscle King Gym" }
+
 -- Guardar referencias de toggles
 local gymToggles = {}
 
--- Crear Dropdowns y Toggles para cada ejercicio con Fluent
+-- Función segura para teletransportar
+local function safeTeleport(workoutType, gym)
+    local pos = workoutPositions[workoutType] and workoutPositions[workoutType][gym]
+    if pos then
+        teleportAndStart(workoutType, pos)
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Error",
+            Text = "No se encontró posición para " .. workoutType .. " en " .. gym,
+            Duration = 5
+        })
+    end
+end
+
+-- Crear dropdowns y toggles por cada ejercicio
 for _, workoutType in ipairs(workoutTypes) do
     local spanishWorkoutName = workoutTranslations[workoutType]
 
-    -- Crear dropdown para gimnasio
+    -- Inicializar valor por defecto del dropdown
+    local defaultGym = gymLocations[1]
+    _G["selected" .. string.gsub(workoutType, " ", "") .. "Gym"] = defaultGym
+
+    -- Dropdown Fluent
     local dropdown = Tabs.Main:CreateDropdown(workoutType .. "GymDropdown", {
         Title = spanishWorkoutName .. " - Gimnasio",
         Values = gymLocations,
         Multi = false,
-        Default = gymLocations[1]
+        Default = defaultGym
     })
 
     dropdown:OnChanged(function(selected)
         _G["selected" .. string.gsub(workoutType, " ", "") .. "Gym"] = selected
     end)
 
-    -- Crear toggle para activar ejercicio
+    -- Toggle Fluent
     local toggle = Tabs.Main:CreateToggle(workoutType .. "GymToggle", {
         Title = "Auto " .. spanishWorkoutName,
-        Default = false
+        Default = false,
+        Description = "Se teletransporta y entrena automáticamente en el gimnasio seleccionado"
     })
 
     toggle:OnChanged(function(state)
-        getgenv().workingGym = state
-        getgenv().currentWorkoutType = workoutType
+        getgenv()["auto" .. string.gsub(workoutType, " ", "")] = state
 
         if state then
-            local selectedGym = _G["selected" .. string.gsub(workoutType, " ", "") .. "Gym"] or gymLocations[1]
+            local selectedGym = _G["selected" .. string.gsub(workoutType, " ", "") .. "Gym"]
 
-            if workoutPositions[workoutType] and workoutPositions[workoutType][selectedGym] then
-                -- Apaga otros toggles
-                for otherType, otherToggle in pairs(gymToggles) do
-                    if otherType ~= workoutType and otherToggle then
-                        otherToggle:Set(false)
-                    end
+            -- Apagar otros toggles
+            for otherType, otherToggle in pairs(gymToggles) do
+                if otherType ~= workoutType and otherToggle then
+                    otherToggle:Set(false)
+                    getgenv()["auto" .. string.gsub(otherType, " ", "")] = false
                 end
-
-                -- Inicia el entrenamiento
-                teleportAndStart(workoutType, workoutPositions[workoutType][selectedGym])
-            else
-                -- Notificación de error
-                game:GetService("StarterGui"):SetCore("SendNotification", {
-                    Title = "Error",
-                    Text = "No se encontró posición para " .. workoutType .. " en " .. selectedGym,
-                    Duration = 5
-                })
             end
+
+            safeTeleport(workoutType, selectedGym)
         end
     end)
 
-    -- Guardar toggle
     gymToggles[workoutType] = toggle
 end
+
+-- Toggle general de Auto Gyms
+local AutoGymsToggle = Tabs.Main:CreateToggle("autoGyms", {
+    Title = "Auto Gyms",
+    Default = false,
+    Description = "Activa/desactiva todos los workouts automáticamente"
+})
+
+AutoGymsToggle:OnChanged(function(state)
+    for workoutType, toggle in pairs(gymToggles) do
+        toggle:Set(state)
+        getgenv()["auto" .. string.gsub(workoutType, " ", "")] = state
+    end
+end)
+
+Tabs.Main:AddSection("Auto Snacks")
+
+-- 🍽 Auto Snacks
+local Autosnacks = Tabs.Main:CreateToggle("autoSnacks", {
+    Title = "Auto Snacks",
+    Default = false,
+    Description = "Auto Snacks (No Egg)"
+})
+
+-- Estado global del toggle
+getgenv().autoEatBoostsEnabled = false
+
+local boostsList = {
+    "ULTRA Shake",
+    "TOUGH Bar",
+    "Protein Shake",
+    "Energy Shake",
+    "Protein Bar",
+    "Energy Bar",
+    "Tropical Shake"
+}
+
+-- Función para comer todos los boosts
+local function eatAllBoosts()
+    local player = game.Players.LocalPlayer
+    local backpack = player:WaitForChild("Backpack")
+    local character = player.Character or player.CharacterAdded:Wait()
+
+    for _, boostName in ipairs(boostsList) do
+        local boost = backpack:FindFirstChild(boostName)
+        while boost do
+            boost.Parent = character
+            pcall(function()
+                boost:Activate()
+            end)
+            task.wait(0.1)
+            boost = backpack:FindFirstChild(boostName)
+        end
+    end
+end
+
+-- Conectar el toggle
+Autosnacks:OnChanged(function(state)
+    getgenv().autoEatBoostsEnabled = state
+end)
+
+-- Loop seguro para comer boosts automáticamente
+task.spawn(function()
+    while true do
+        if getgenv().autoEatBoostsEnabled then
+            pcall(eatAllBoosts)
+            task.wait(2)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+-- 🥚 Auto Protein Egg cada 30 minutos
+local Autossnacks = Tabs.Main:CreateToggle("autoProteinEgg", {
+    Title = "Auto Egg 30 Minuts",
+    Default = false,
+    Description = "Auto Protein Egg 30 minutos"
+})
+
+-- Estado global controlado por el toggle
+getgenv().autoEatEnabled = false
+
+-- Función para comer el huevo de proteína
+local function eatProteinEgg()
+    local player = game.Players.LocalPlayer
+    local backpack = player:WaitForChild("Backpack")
+    local character = player.Character or player.CharacterAdded:Wait()
+
+    local egg = backpack:FindFirstChild("Protein Egg")
+    if egg then
+        egg.Parent = character
+        pcall(function()
+            egg:Activate()
+        end)
+    end
+end
+
+-- Conectar toggle
+Autossnacks:OnChanged(function(state)
+    getgenv().autoEatEnabled = state
+end)
+
+-- Loop seguro para comer huevo cada 30 minutos
+task.spawn(function()
+    while true do
+        if getgenv().autoEatEnabled then
+            pcall(eatProteinEgg)
+            task.wait(1800) -- 30 minutos
+        else
+            task.wait(1)
+        end
+    end
+end)
